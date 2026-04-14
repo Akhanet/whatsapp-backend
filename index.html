@@ -47,12 +47,27 @@
                 const messages = await res.json();
                 const box = document.getElementById('chatBox');
                 box.innerHTML = '';
+                
                 messages.forEach(msg => {
                     const div = document.createElement('div');
                     div.className = 'msg ' + msg.direction;
-                    div.innerHTML = `<span class="msg-phone">${msg.sender_phone}</span>${msg.message_body}`;
+                    
+                    let content = msg.message_body || '';
+                    
+                    // Format media correctly if it exists
+                    if (msg.media_type === 'image') {
+                        // Styled to guarantee graphics appear fully without being cut off
+                        content = `<img src="/api/media/${msg.media_id}" style="max-width: 100%; max-height: 350px; object-fit: contain; display: block; border-radius: 4px; margin-top: 8px;" alt="Customer Graphic">`;
+                    } else if (msg.media_type === 'document') {
+                        // Dynamic color link so it's readable on both incoming (white) and outgoing (blue) bubbles
+                        const linkColor = msg.direction === 'outgoing' ? '#ffffff' : '#1E7C98';
+                        content = `<div style="margin-top: 8px;"><a href="/api/media/${msg.media_id}" target="_blank" style="color: ${linkColor}; text-decoration: underline; font-weight: bold;">📄 Download ${content}</a></div>`;
+                    }
+                    
+                    div.innerHTML = `<span class="msg-phone">${msg.sender_phone}</span>${content}`;
                     box.appendChild(div);
                 });
+                
                 // Auto-scroll to the newest message at the bottom
                 box.scrollTop = box.scrollHeight;
             } catch (error) {
