@@ -2,50 +2,144 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Akhanet Team Workspace</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Akhanet Business Portal</title>
     <style>
-        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; height: 100vh; background-color: #f0f2f5; }
-        .sidebar { width: 300px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
-        .header { background: #1E7C98; color: white; padding: 20px; text-align: center; font-size: 1.2rem; font-weight: bold; }
-        .chat-area { flex: 1; display: flex; flex-direction: column; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* BRAND COLORS */
+        :root { --primary: #1E7C98; --primary-hover: #165c71; --light-bg: #e6f3f7; }
+
+        /* LOGIN SCREEN */
+        #loginScreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #f0f2f5; display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        .login-box h2 { color: var(--primary); margin-bottom: 25px; }
+        .login-box input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
+        .login-box button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        .login-box button:hover { background: var(--primary-hover); }
+        .error-msg { color: #d32f2f; margin-bottom: 15px; font-size: 0.9rem; display: none; }
+
+        /* DASHBOARD LAYOUT */
+        #dashboardScreen { display: none; width: 100%; height: 100%; }
+        .sidebar { width: 320px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
+        .header { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .user-info { font-size: 0.9rem; font-weight: 500; }
+        .logout-btn { background: transparent; border: 1px solid white; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        
+        .chat-area { flex: 1; display: flex; flex-direction: column; background: #e5ddd5; }
+        .chat-header { background: #f0f2f5; padding: 15px 20px; border-bottom: 1px solid #ddd; display: flex; align-items: center; justify-content: space-between;}
+        
         .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 12px 16px; border-radius: 8px; max-width: 60%; line-height: 1.4; font-size: 0.95rem; }
-        .msg.incoming { background: white; align-self: flex-start; border: 1px solid #e0e0e0; border-top-left-radius: 0; }
-        .msg.outgoing { background: #1E7C98; color: white; align-self: flex-end; border-top-right-radius: 0; }
-        .msg-phone { font-size: 0.75rem; color: #888; margin-bottom: 4px; display: block; }
-        .msg.outgoing .msg-phone { color: #d0e8f0; }
-        .input-area { padding: 20px; background: white; border-top: 1px solid #ddd; display: flex; gap: 10px; align-items: center; }
-        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 6px; outline: none; font-size: 1rem; }
-        .phone-input { width: 180px; }
-        button { background: #1E7C98; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: bold; transition: background 0.2s; }
-        button:hover { background: #165c71; }
+        .msg { padding: 10px 14px; border-radius: 8px; max-width: 75%; line-height: 1.4; font-size: 0.95rem; position: relative; }
+        .msg.incoming { background: white; align-self: flex-start; border-top-left-radius: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .msg.outgoing { background: var(--light-bg); align-self: flex-end; border-top-right-radius: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        
+        /* Fully visible images */
+        .msg img { max-width: 100%; max-height: 350px; object-fit: contain; display: block; border-radius: 6px; margin-top: 5px; }
+        
+        .input-area { padding: 15px 20px; background: #f0f2f5; display: flex; gap: 10px; align-items: center; }
+        .input-area input[type="text"] { flex: 1; padding: 14px; border: none; border-radius: 24px; outline: none; font-size: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .action-btn { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 24px; cursor: pointer; font-weight: bold; }
+        .attach-btn { background: #fff; color: #555; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+
+        /* MOBILE RESPONSIVENESS */
+        @media (max-width: 768px) {
+            #dashboardScreen { flex-direction: column; }
+            .sidebar { width: 100%; height: 35%; border-right: none; border-bottom: 2px solid #ddd; }
+            .chat-area { height: 65%; }
+            .msg { max-width: 85%; }
+        }
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <div class="header">Akhanet Live Inbox</div>
-        <div style="padding: 20px; color: #555; font-size: 0.9rem; text-align: center;">
-            All incoming customer messages appear here. Enter the customer's phone number below to reply to them directly.
+
+    <div id="loginScreen">
+        <div class="login-box">
+            <h2>Akhanet Portal</h2>
+            <div id="loginError" class="error-msg">Incorrect username or passcode.</div>
+            <input type="text" id="username" placeholder="Username (e.g. simple_akhanet)">
+            <input type="password" id="passcode" placeholder="Passcode">
+            <button onclick="attemptLogin()">Log In to Workspace</button>
         </div>
     </div>
-    <div class="chat-area">
-        <div class="messages" id="chatBox">
+
+    <div id="dashboardScreen">
+        <div class="sidebar">
+            <div class="header">
+                <div>
+                    <div style="font-weight: bold; font-size: 1.1rem;">Lobby</div>
+                    <div id="loggedInUser" class="user-info"></div>
+                </div>
+                <button class="logout-btn" onclick="logout()">Log Out</button>
             </div>
-        <div class="input-area">
-            <input type="text" id="phoneInput" class="phone-input" placeholder="To: e.g. 23480...">
-            <input type="file" id="fileInput" style="display: none;">
-            <button onclick="document.getElementById('fileInput').click()" style="background: #e0e0e0; color: #333; padding: 12px; border-radius: 6px;">📎 Attach</button>
-            <input type="text" id="msgInput" placeholder="Type your reply or caption...">
-            <button onclick="sendMessage()">Send</button>
+            <div style="padding: 20px; color: #555; text-align: center; font-size: 0.9rem;">
+                (Lobby list coming in the next step. For now, enter a number below to chat.)
+            </div>
+        </div>
+
+        <div class="chat-area">
+            <div class="chat-header">
+                <input type="text" id="phoneInput" placeholder="Active Customer Number..." style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                <button onclick="loadMessages()" style="padding: 8px 12px; cursor: pointer;">Load Chat</button>
+            </div>
+            
+            <div class="messages" id="chatBox">
+                </div>
+            
+            <div class="input-area">
+                <input type="file" id="fileInput" style="display: none;">
+                <button class="action-btn attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
+                <input type="text" id="msgInput" placeholder="Type a message or caption...">
+                <button class="action-btn" onclick="sendMessage()">Send</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // Automatically pull new messages from the database
-        async function loadMessages() {
+        let currentStaff = '';
+
+        // LOGIN LOGIC
+        async function attemptLogin() {
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('passcode').value;
+            
             try {
-                const res = await fetch('/api/messages');
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username: user, passcode: pass })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    currentStaff = data.username;
+                    document.getElementById('loggedInUser').innerText = `Agent: ${currentStaff}`;
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('dashboardScreen').style.display = 'flex';
+                } else {
+                    document.getElementById('loginError').style.display = 'block';
+                }
+            } catch (err) {
+                alert("Server error connecting to database.");
+            }
+        }
+
+        function logout() {
+            currentStaff = '';
+            document.getElementById('dashboardScreen').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('username').value = '';
+            document.getElementById('passcode').value = '';
+        }
+
+        // LOAD CHAT HISTORY
+        async function loadMessages() {
+            const phone = document.getElementById('phoneInput').value.trim();
+            if(!phone) return;
+
+            try {
+                const res = await fetch(`/api/messages/${phone}`);
                 const messages = await res.json();
                 const box = document.getElementById('chatBox');
                 box.innerHTML = '';
@@ -55,54 +149,51 @@
                     div.className = 'msg ' + msg.direction;
                     
                     let content = msg.message_body || '';
-                    
-                    // Format media correctly if it exists
                     if (msg.media_type === 'image') {
-                        // Styled to guarantee graphics appear fully without being cut off
-                        content = `<img src="/api/media/${msg.media_id}" style="max-width: 100%; max-height: 350px; object-fit: contain; display: block; border-radius: 4px; margin-top: 8px;" alt="Customer Graphic">`;
+                        content = `<img src="/api/media/${msg.media_id}" alt="Graphic"> <br> ${content}`;
                     } else if (msg.media_type === 'document') {
-                        // Dynamic color link so it's readable on both incoming (white) and outgoing (blue) bubbles
-                        const linkColor = msg.direction === 'outgoing' ? '#ffffff' : '#1E7C98';
-                        content = `<div style="margin-top: 8px;"><a href="/api/media/${msg.media_id}" target="_blank" style="color: ${linkColor}; text-decoration: underline; font-weight: bold;">📄 Download ${content}</a></div>`;
+                        content = `<div>📄 <a href="/api/media/${msg.media_id}" target="_blank" style="color: #1E7C98; text-decoration: underline;">Download Document</a></div> <br> ${content}`;
                     }
                     
-                    div.innerHTML = `<span class="msg-phone">${msg.sender_phone}</span>${content}`;
+                    let senderInfo = msg.direction === 'outgoing' ? `<div style="font-size: 0.7rem; color: #888; text-align: right;">Sent by: ${msg.staff_username || 'System'}</div>` : '';
+                    div.innerHTML = `${content} ${senderInfo}`;
                     box.appendChild(div);
                 });
-                
-                // Auto-scroll to the newest message at the bottom
                 box.scrollTop = box.scrollHeight;
-            } catch (error) {
-                console.error("Error loading messages", error);
-            }
+            } catch (error) { console.error("Error loading messages", error); }
         }
 
-        // Send the typed reply out to Meta
+        // SEND MESSAGES
         async function sendMessage() {
             const phone = document.getElementById('phoneInput').value.trim();
             const text = document.getElementById('msgInput').value.trim();
             const fileInput = document.getElementById('fileInput');
             const file = fileInput.files[0];
 
-            if(!text && !file) return alert("Please enter a message or attach a file.");
-            if(!phone) return alert("Please enter the customer's phone number.");
+            if(!phone) return alert("Enter customer number in the header first.");
+            if(!text && !file) return alert("Type a message or attach a file.");
 
             document.getElementById('msgInput').value = 'Sending...';
 
             const formData = new FormData();
             formData.append('to', phone);
             formData.append('message', text);
+            formData.append('staff_username', currentStaff);
             if (file) formData.append('file', file);
 
-            await fetch('/send-reply', {
-                method: 'POST',
-                body: formData // No content-type header needed, the browser sets it for FormData
-            });
+            await fetch('/send-reply', { method: 'POST', body: formData });
 
             document.getElementById('msgInput').value = '';
-            fileInput.value = ''; // Clear the file selection
+            fileInput.value = '';
             loadMessages();
         }
+
+        // Auto-refresh the current chat every 4 seconds
+        setInterval(() => {
+            if (document.getElementById('dashboardScreen').style.display === 'flex') {
+                loadMessages();
+            }
+        }, 4000);
     </script>
 </body>
 </html>
