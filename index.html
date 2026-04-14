@@ -34,8 +34,10 @@
             </div>
         <div class="input-area">
             <input type="text" id="phoneInput" class="phone-input" placeholder="To: e.g. 23480...">
-            <input type="text" id="msgInput" placeholder="Type your reply to the customer...">
-            <button onclick="sendMessage()">Send Reply</button>
+            <input type="file" id="fileInput" style="display: none;">
+            <button onclick="document.getElementById('fileInput').click()" style="background: #e0e0e0; color: #333; padding: 12px; border-radius: 6px;">📎 Attach</button>
+            <input type="text" id="msgInput" placeholder="Type your reply or caption...">
+            <button onclick="sendMessage()">Send</button>
         </div>
     </div>
 
@@ -79,23 +81,28 @@
         async function sendMessage() {
             const phone = document.getElementById('phoneInput').value.trim();
             const text = document.getElementById('msgInput').value.trim();
-            if(!text || !phone) return alert("Please enter both the customer's phone number and a message.");
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if(!text && !file) return alert("Please enter a message or attach a file.");
+            if(!phone) return alert("Please enter the customer's phone number.");
 
             document.getElementById('msgInput').value = 'Sending...';
 
+            const formData = new FormData();
+            formData.append('to', phone);
+            formData.append('message', text);
+            if (file) formData.append('file', file);
+
             await fetch('/send-reply', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ to: phone, message: text })
+                body: formData // No content-type header needed, the browser sets it for FormData
             });
 
             document.getElementById('msgInput').value = '';
+            fileInput.value = ''; // Clear the file selection
             loadMessages();
         }
-
-        // Refresh the chat screen every 3 seconds so the team sees new texts instantly
-        setInterval(loadMessages, 3000);
-        loadMessages();
     </script>
 </body>
 </html>
