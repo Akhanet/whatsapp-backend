@@ -9,7 +9,6 @@
         body { background-color: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
         :root { --primary: #1E7C98; --primary-hover: #165c71; --light-bg: #e6f3f7; }
 
-        /* LOGIN SCREEN */
         #loginScreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #f0f2f5; display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
         .login-box h2 { color: var(--primary); margin-bottom: 25px; }
@@ -17,8 +16,13 @@
         .login-box button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; }
         .error-msg { color: #d32f2f; margin-bottom: 15px; font-size: 0.9rem; display: none; }
 
-        /* DASHBOARD LAYOUT */
-        #dashboardScreen { display: none; width: 100%; height: 100%; }
+        #dashboardScreen { display: none; width: 100%; height: 100%; flex-direction: column; }
+        
+        /* LIVE ADMIN ALERT BANNER */
+        #adminAlertBanner { display: none; background-color: #d32f2f; color: white; padding: 12px 20px; font-weight: bold; align-items: center; justify-content: space-between; z-index: 50; }
+        .dismiss-btn { background: white; color: #d32f2f; border: none; padding: 4px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+
+        .workspace-area { display: flex; flex: 1; overflow: hidden; }
         .sidebar { width: 320px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
         .header { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
         .user-info { font-size: 0.9rem; font-weight: 500; }
@@ -35,7 +39,6 @@
         .status-dot.assigned { background-color: #FFC107; } 
         .status-badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 12px; background: #eee; color: #555; }
 
-        /* CHAT AREA & ADMIN PANEL */
         .main-content { flex: 1; display: flex; flex-direction: column; background: #e5ddd5; position: relative; }
         
         #adminPanel { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 20; padding: 40px; overflow-y: auto; }
@@ -49,7 +52,6 @@
 
         .archive-list { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
         .archive-item { background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-        .archive-item:hover { background: #eee; }
 
         .chat-header { background: #f0f2f5; padding: 15px 20px; border-bottom: 1px solid #ddd; display: flex; align-items: center; justify-content: space-between;}
         .chat-title { font-weight: bold; font-size: 1.1rem; color: #333; }
@@ -61,7 +63,6 @@
         .msg { padding: 10px 14px; border-radius: 8px; max-width: 75%; line-height: 1.4; font-size: 0.95rem; }
         .msg.incoming { background: white; align-self: flex-start; border-top-left-radius: 0; }
         .msg.outgoing { background: var(--light-bg); align-self: flex-end; border-top-right-radius: 0; }
-        .msg img { max-width: 100%; max-height: 350px; object-fit: contain; display: block; border-radius: 6px; margin-top: 5px; }
         
         .input-area { padding: 15px 20px; background: #f0f2f5; display: flex; gap: 10px; align-items: center; }
         .input-area input[type="text"] { flex: 1; padding: 14px; border: none; border-radius: 24px; outline: none; font-size: 1rem; }
@@ -71,7 +72,7 @@
         #lockOverlay { display: flex; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 10; align-items: center; justify-content: center; font-size: 1.2rem; color: #555; font-weight: bold; }
 
         @media (max-width: 768px) {
-            #dashboardScreen { flex-direction: column; }
+            .workspace-area { flex-direction: column; }
             .sidebar { width: 100%; height: 40%; }
             .main-content { height: 60%; }
             #adminPanel { padding: 20px; }
@@ -83,53 +84,60 @@
     <div id="loginScreen">
         <div class="login-box">
             <h2>Akhanet Portal</h2>
-            <div id="loginError" class="error-msg">Incorrect username or passcode.</div>
-            <input type="text" id="username" placeholder="Username (e.g. staff_mary)">
+            <div id="loginError" class="error-msg">Incorrect credentials.</div>
+            <input type="text" id="username" placeholder="Username">
             <input type="password" id="passcode" placeholder="Passcode">
             <button onclick="attemptLogin()">Log In to Workspace</button>
         </div>
     </div>
 
     <div id="dashboardScreen">
-        <div class="sidebar">
-            <div class="header">
-                <div>
-                    <div style="font-weight: bold; font-size: 1.1rem;">Active Lobby</div>
-                    <div id="loggedInUser" class="user-info"></div>
-                    <button id="adminBtn" class="admin-btn" onclick="openAdminPanel()">👑 Admin Tools</button>
-                </div>
-                <button class="logout-btn" onclick="logout()">Log Out</button>
-            </div>
-            <div class="customer-list" id="lobbyList"></div>
+        <div id="adminAlertBanner">
+            <span id="alertText">🚨 SECURITY BREACH DETECTED</span>
+            <button class="dismiss-btn" onclick="clearAlert()">Dismiss</button>
         </div>
 
-        <div class="main-content">
-            <div id="adminPanel">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="color: var(--primary);">👑 Admin Tools</h2>
-                    <button onclick="closeAdminPanel()" style="padding: 8px 16px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer;">Close Panel</button>
+        <div class="workspace-area">
+            <div class="sidebar">
+                <div class="header">
+                    <div>
+                        <div style="font-weight: bold; font-size: 1.1rem;">Active Lobby</div>
+                        <div id="loggedInUser" class="user-info"></div>
+                        <button id="adminBtn" class="admin-btn" onclick="openAdminPanel()">👑 Admin Tools</button>
+                    </div>
+                    <button class="logout-btn" onclick="logout()">Log Out</button>
                 </div>
-                <div class="admin-tabs">
-                    <button id="tabPayroll" class="tab-btn active" onclick="loadPayroll()">📊 Payroll</button>
-                    <button id="tabArchive" class="tab-btn" onclick="loadArchive()">📁 Chat Archive</button>
-                </div>
-                <div id="adminContent"></div>
+                <div class="customer-list" id="lobbyList"></div>
             </div>
 
-            <div id="lockOverlay">Select a customer from the lobby to view chat.</div>
-            
-            <div class="chat-header" id="chatHeader" style="display: none;">
-                <div class="chat-title" id="activeChatTitle">Chat</div>
-                <div id="chatControls"></div>
-            </div>
-            
-            <div class="messages" id="chatBox"></div>
-            
-            <div class="input-area" id="inputArea" style="display: none;">
-                <input type="file" id="fileInput" style="display: none;">
-                <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎 Attach</button>
-                <input type="text" id="msgInput" placeholder="Type a message or caption...">
-                <button class="send-btn" onclick="sendMessage()">Send</button>
+            <div class="main-content">
+                <div id="adminPanel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="color: var(--primary);">👑 Admin Tools</h2>
+                        <button onclick="closeAdminPanel()" style="padding: 8px 16px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer;">Close Panel</button>
+                    </div>
+                    <div class="admin-tabs">
+                        <button id="tabPayroll" class="tab-btn active" onclick="loadPayroll()">📊 Payroll</button>
+                        <button id="tabArchive" class="tab-btn" onclick="loadArchive()">📁 Chat Archive</button>
+                    </div>
+                    <div id="adminContent"></div>
+                </div>
+
+                <div id="lockOverlay">Select a customer from the lobby.</div>
+                
+                <div class="chat-header" id="chatHeader" style="display: none;">
+                    <div class="chat-title" id="activeChatTitle">Chat</div>
+                    <div id="chatControls"></div>
+                </div>
+                
+                <div class="messages" id="chatBox"></div>
+                
+                <div class="input-area" id="inputArea" style="display: none;">
+                    <input type="file" id="fileInput" style="display: none;">
+                    <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎 Attach</button>
+                    <input type="text" id="msgInput" placeholder="Type a message...">
+                    <button class="send-btn" onclick="sendMessage()">Send</button>
+                </div>
             </div>
         </div>
     </div>
@@ -140,61 +148,37 @@
         let activePhone = '';
         let activeCustomerStatus = '';
         let activeCustomerOwner = '';
-
-        // Notification Trackers
         let previousOpenCount = 0;
         let previousMsgCount = 0;
+        let currentAlertId = null;
 
-        // SYSTEM AUDIO BEEP
         function playBeep() {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
                 const osc = ctx.createOscillator();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(880, ctx.currentTime); 
-                osc.connect(ctx.destination);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.1);
+                osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime); 
+                osc.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.1);
             } catch(e) {}
         }
-
-        // BROWSER NOTIFICATION
         function sendPushNotification(title, body) {
-            if ("Notification" in window && Notification.permission === "granted") {
-                new Notification(title, { body: body });
-            }
+            if ("Notification" in window && Notification.permission === "granted") new Notification(title, { body: body });
         }
 
-        // AUTO-LOGIN CHECK (PERSISTENT SESSION)
         window.onload = () => {
             const savedUser = localStorage.getItem('akhanet_user');
             const savedRole = localStorage.getItem('akhanet_role');
-            if (savedUser && savedRole) {
-                currentStaff = savedUser;
-                currentRole = savedRole;
-                enterWorkspace();
-            }
+            if (savedUser && savedRole) { currentStaff = savedUser; currentRole = savedRole; enterWorkspace(); }
         };
 
-        // LOGIN
         async function attemptLogin() {
             const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('passcode').value;
             try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ username: user, passcode: pass })
-                });
+                const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user, passcode: pass }) });
                 const data = await res.json();
                 if (data.success) {
-                    currentStaff = data.username;
-                    currentRole = data.role;
-                    
-                    // Save to persistent memory
-                    localStorage.setItem('akhanet_user', currentStaff);
-                    localStorage.setItem('akhanet_role', currentRole);
-                    
+                    currentStaff = data.username; currentRole = data.role;
+                    localStorage.setItem('akhanet_user', currentStaff); localStorage.setItem('akhanet_role', currentRole);
                     enterWorkspace();
                 } else { document.getElementById('loginError').style.display = 'block'; }
             } catch (err) { alert("Server error."); }
@@ -205,60 +189,56 @@
             if (currentRole === 'admin') document.getElementById('adminBtn').style.display = 'block';
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('dashboardScreen').style.display = 'flex';
-            
-            // Ask for Notification Permissions
-            if ("Notification" in window && Notification.permission !== "granted") {
-                Notification.requestPermission();
-            }
+            if ("Notification" in window && Notification.permission !== "granted") Notification.requestPermission();
             loadLobby();
         }
 
-        // LOGOUT (CLEAR SESSION)
-        function logout() {
-            localStorage.removeItem('akhanet_user');
-            localStorage.removeItem('akhanet_role');
-            location.reload();
+        function logout() { localStorage.removeItem('akhanet_user'); localStorage.removeItem('akhanet_role'); location.reload(); }
+
+        // --- ADMIN LIVE ALERTS CHECKER ---
+        async function checkSecurityAlerts() {
+            if (currentRole !== 'admin') return;
+            try {
+                const res = await fetch('/api/admin/alerts');
+                const alerts = await res.json();
+                if (alerts.length > 0) {
+                    const latest = alerts[0];
+                    currentAlertId = latest.id;
+                    document.getElementById('adminAlertBanner').style.display = 'flex';
+                    document.getElementById('alertText').innerText = `🚨 SECURITY BREACH: ${latest.culprit_type} [${latest.culprit_name}] attempted to poach. MSG: "${latest.attempted_message}"`;
+                    playBeep();
+                    sendPushNotification("SECURITY ALERT", "A poaching attempt was just blocked.");
+                }
+            } catch(e) {}
         }
 
-        // ADMIN PANEL
-        function openAdminPanel() {
-            document.getElementById('adminPanel').style.display = 'block';
-            loadPayroll(); 
+        async function clearAlert() {
+            if(!currentAlertId) return;
+            await fetch('/api/admin/alerts/clear', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: currentAlertId }) });
+            document.getElementById('adminAlertBanner').style.display = 'none';
+            currentAlertId = null;
         }
+        // ---------------------------------
+
+        function openAdminPanel() { document.getElementById('adminPanel').style.display = 'block'; loadPayroll(); }
         function closeAdminPanel() { document.getElementById('adminPanel').style.display = 'none'; }
 
         async function loadPayroll() {
-            document.getElementById('tabPayroll').classList.add('active');
-            document.getElementById('tabArchive').classList.remove('active');
-            const res = await fetch('/api/admin/staff');
-            const staffStats = await res.json();
+            document.getElementById('tabPayroll').classList.add('active'); document.getElementById('tabArchive').classList.remove('active');
+            const res = await fetch('/api/admin/staff'); const staffStats = await res.json();
             let html = `<table class="payroll-table"><thead><tr><th>Username</th><th>Role</th><th>Deals Closed</th></tr></thead><tbody>`;
-            staffStats.forEach(staff => {
-                const highlight = staff.role === 'admin' ? 'style="background: #f0f2f5; font-weight: bold;"' : '';
-                html += `<tr ${highlight}><td>${staff.username}</td><td>${staff.role}</td><td style="font-size: 1.2rem; font-weight: bold; color: #1E7C98;">${staff.deals_closed}</td></tr>`;
-            });
-            html += `</tbody></table>`;
-            document.getElementById('adminContent').innerHTML = html;
+            staffStats.forEach(staff => { html += `<tr><td>${staff.username}</td><td>${staff.role}</td><td style="font-weight: bold; color: #1E7C98;">${staff.deals_closed}</td></tr>`; });
+            document.getElementById('adminContent').innerHTML = html + `</tbody></table>`;
         }
-
         async function loadArchive() {
-            document.getElementById('tabArchive').classList.add('active');
-            document.getElementById('tabPayroll').classList.remove('active');
-            const res = await fetch('/api/admin/archive');
-            const closedChats = await res.json();
+            document.getElementById('tabArchive').classList.add('active'); document.getElementById('tabPayroll').classList.remove('active');
+            const res = await fetch('/api/admin/archive'); const closedChats = await res.json();
             let html = `<div class="archive-list">`;
-            if (closedChats.length === 0) html += `<p>No closed chats found.</p>`;
-            closedChats.forEach(cust => {
-                const date = new Date(cust.last_messaged_at).toLocaleDateString();
-                html += `<div class="archive-item" onclick="openArchivedChat('${cust.phone_number}', '${cust.assigned_to}')"><div><strong>${cust.phone_number}</strong><br><span style="font-size: 0.8rem; color: #666;">Closed: ${date}</span></div><span class="status-badge">Handled by: ${cust.assigned_to}</span></div>`;
-            });
-            html += `</div>`;
-            document.getElementById('adminContent').innerHTML = html;
+            closedChats.forEach(cust => { html += `<div class="archive-item" onclick="openArchivedChat('${cust.phone_number}', '${cust.assigned_to}')"><div><strong>${cust.phone_number}</strong></div><span class="status-badge">${cust.assigned_to}</span></div>`; });
+            document.getElementById('adminContent').innerHTML = html + `</div>`;
         }
+        function openArchivedChat(phone, owner) { closeAdminPanel(); selectCustomer(phone, phone, 'closed', owner); }
 
-        function openArchivedChat(phone, owner) { closeAdminPanel(); selectCustomer(phone, 'closed', owner); }
-
-        // LOAD LOBBY WITH NOTIFICATIONS
         async function loadLobby() {
             if(!currentStaff) return;
             try {
@@ -266,14 +246,12 @@
                 const customers = await res.json();
                 const list = document.getElementById('lobbyList');
                 list.innerHTML = '';
-
                 let currentOpenCount = 0;
 
                 customers.forEach(cust => {
                     if(cust.status === 'closed') return; 
                     if(cust.status === 'open') currentOpenCount++;
 
-                    // NUMBER MASKING LOGIC
                     let displayPhone = cust.phone_number;
                     if (currentRole !== 'admin' && cust.phone_number.length > 4) {
                         displayPhone = 'Client-****' + cust.phone_number.slice(-4);
@@ -281,152 +259,85 @@
 
                     const div = document.createElement('div');
                     div.className = `customer-item ${cust.phone_number === activePhone ? 'active' : ''}`;
-                    let statusHtml = '';
-                    if (cust.status === 'open') {
-                        statusHtml = `<span class="status-badge"><span class="status-dot open"></span>Waiting</span>`;
-                    } else if (cust.status === 'assigned') {
-                        const isMe = cust.assigned_to === currentStaff;
-                        statusHtml = `<span class="status-badge"><span class="status-dot assigned"></span>${isMe ? 'My Chat' : cust.assigned_to}</span>`;
-                    }
+                    let statusHtml = cust.status === 'open' ? `<span class="status-badge"><span class="status-dot open"></span>Waiting</span>` : `<span class="status-badge"><span class="status-dot assigned"></span>${cust.assigned_to === currentStaff ? 'My Chat' : cust.assigned_to}</span>`;
                     div.innerHTML = `<div><strong>${displayPhone}</strong></div> ${statusHtml}`;
-                    
-                    // We still pass the real phone quietly to the system so it knows who to message
                     div.onclick = () => selectCustomer(cust.phone_number, displayPhone, cust.status, cust.assigned_to);
                     list.appendChild(div);
                 });
 
-                if (currentOpenCount > previousOpenCount && previousOpenCount !== 0) {
-                    playBeep();
-                    sendPushNotification("Akhanet Alert", "A new customer is waiting in the Lobby.");
-                }
+                if (currentOpenCount > previousOpenCount && previousOpenCount !== 0) { playBeep(); sendPushNotification("Akhanet Alert", "New customer waiting."); }
                 previousOpenCount = currentOpenCount;
-
-            } catch (err) { console.error(err); }
+            } catch (err) {}
         }
 
         function selectCustomer(phone, displayPhone, status, owner) {
-            activePhone = phone;
-            activeCustomerStatus = status;
-            activeCustomerOwner = owner;
-            previousMsgCount = 0; 
-            
+            activePhone = phone; activeCustomerStatus = status; activeCustomerOwner = owner; previousMsgCount = 0; 
             document.getElementById('lockOverlay').style.display = 'none';
             document.getElementById('chatHeader').style.display = 'flex';
-            
-            // Show masked phone in header
             document.getElementById('activeChatTitle').innerText = displayPhone;
-            
-            updateChatControls();
-            loadMessages();
-            loadLobby(); 
+            updateChatControls(); loadMessages(); loadLobby(); 
         }
 
         function updateChatControls() {
-            const controls = document.getElementById('chatControls');
-            const inputArea = document.getElementById('inputArea');
-            if (activeCustomerStatus === 'closed') {
-                controls.innerHTML = `<span style="color: #666; font-size: 0.9rem; background: #eee; padding: 4px 8px; border-radius: 4px;">📁 Archived</span>`;
-                inputArea.style.display = 'none'; 
-            } else if (activeCustomerStatus === 'open') {
-                controls.innerHTML = `<button class="action-btn claim-btn" onclick="updateCustomerStatus('assigned', '${currentStaff}')">✋ Attend to Customer</button>`;
-                inputArea.style.display = 'none'; 
-            } else if (activeCustomerStatus === 'assigned' && activeCustomerOwner === currentStaff) {
-                controls.innerHTML = `<button class="action-btn close-btn" onclick="updateCustomerStatus('closed', '${currentStaff}')">✅ Mark Job Complete</button>`;
-                inputArea.style.display = 'flex'; 
-            } else if (activeCustomerStatus === 'assigned' && activeCustomerOwner !== currentStaff) {
-                if (currentRole === 'admin') {
-                    controls.innerHTML = `<span style="color: #d32f2f; font-weight: bold; background: white; padding: 4px 8px; border-radius: 4px;">👀 Spy Mode</span>`;
-                    inputArea.style.display = 'flex'; 
-                } else {
-                    controls.innerHTML = `<span style="color: #666; font-size: 0.9rem;">🔒 Handled by ${activeCustomerOwner}</span>`;
-                    inputArea.style.display = 'none'; 
-                }
+            const controls = document.getElementById('chatControls'); const inputArea = document.getElementById('inputArea');
+            if (activeCustomerStatus === 'closed') { controls.innerHTML = `<span style="color: #666; font-size: 0.9rem; background: #eee; padding: 4px 8px; border-radius: 4px;">📁 Archived</span>`; inputArea.style.display = 'none'; } 
+            else if (activeCustomerStatus === 'open') { controls.innerHTML = `<button class="action-btn claim-btn" onclick="updateCustomerStatus('assigned', '${currentStaff}')">✋ Attend</button>`; inputArea.style.display = 'none'; } 
+            else if (activeCustomerStatus === 'assigned' && activeCustomerOwner === currentStaff) { controls.innerHTML = `<button class="action-btn close-btn" onclick="updateCustomerStatus('closed', '${currentStaff}')">✅ Complete</button>`; inputArea.style.display = 'flex'; } 
+            else if (activeCustomerStatus === 'assigned' && activeCustomerOwner !== currentStaff) {
+                if (currentRole === 'admin') { controls.innerHTML = `<span style="color: #d32f2f; font-weight: bold; background: white; padding: 4px 8px; border-radius: 4px;">👀 Spy Mode</span>`; inputArea.style.display = 'flex'; } 
+                else { controls.innerHTML = `<span style="color: #666; font-size: 0.9rem;">🔒 Handled by ${activeCustomerOwner}</span>`; inputArea.style.display = 'none'; }
             }
         }
 
         async function updateCustomerStatus(newStatus, assignedTo) {
-            await fetch('/api/customers/update', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ phone: activePhone, status: newStatus, assigned_to: assignedTo })
-            });
-            activeCustomerStatus = newStatus;
-            activeCustomerOwner = assignedTo;
-            if (newStatus === 'closed') {
-                activePhone = '';
-                document.getElementById('lockOverlay').style.display = 'flex';
-                document.getElementById('lockOverlay').innerText = "Job logged for payroll.";
-                document.getElementById('chatHeader').style.display = 'none';
-                document.getElementById('inputArea').style.display = 'none';
-                document.getElementById('chatBox').innerHTML = '';
-            } else { updateChatControls(); }
+            await fetch('/api/customers/update', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ phone: activePhone, status: newStatus, assigned_to: assignedTo }) });
+            activeCustomerStatus = newStatus; activeCustomerOwner = assignedTo;
+            if (newStatus === 'closed') { activePhone = ''; document.getElementById('lockOverlay').style.display = 'flex'; document.getElementById('chatHeader').style.display = 'none'; document.getElementById('inputArea').style.display = 'none'; document.getElementById('chatBox').innerHTML = ''; } 
+            else { updateChatControls(); }
             loadLobby();
         }
 
-        // LOAD MESSAGES WITH NOTIFICATIONS
         async function loadMessages() {
             if(!activePhone) return;
             try {
-                const res = await fetch(`/api/messages/${activePhone}`);
-                const messages = await res.json();
-                const box = document.getElementById('chatBox');
-                box.innerHTML = '';
-                
+                const res = await fetch(`/api/messages/${activePhone}`); const messages = await res.json();
+                const box = document.getElementById('chatBox'); box.innerHTML = '';
                 messages.forEach(msg => {
-                    const div = document.createElement('div');
-                    div.className = 'msg ' + msg.direction;
+                    const div = document.createElement('div'); div.className = 'msg ' + msg.direction;
                     let content = msg.message_body || '';
-                    if (msg.media_type === 'image') content = `<img src="/api/media/${msg.media_id}" alt="Graphic"> <br> ${content}`;
-                    else if (msg.media_type === 'document') content = `<div>📄 <a href="/api/media/${msg.media_id}" target="_blank" style="color: #1E7C98; text-decoration: underline;">Download Document</a></div> <br> ${content}`;
-                    
+                    if (msg.media_type === 'image') content = `<img src="/api/media/${msg.media_id}"> <br> ${content}`;
                     let senderInfo = msg.direction === 'outgoing' ? `<div style="font-size: 0.7rem; color: #888; text-align: right;">Sent by: ${msg.staff_username || 'System'}</div>` : '';
-                    div.innerHTML = `${content} ${senderInfo}`;
-                    box.appendChild(div);
+                    div.innerHTML = `${content} ${senderInfo}`; box.appendChild(div);
                 });
                 box.scrollTop = box.scrollHeight;
-
-                // Trigger Alarm if a new message was received from the customer
                 if (messages.length > previousMsgCount && previousMsgCount !== 0) {
                     const lastMsg = messages[messages.length - 1];
-                    if (lastMsg.direction === 'incoming') {
-                        playBeep();
-                        sendPushNotification("New Message", lastMsg.message_body || "Sent an attachment");
-                    }
+                    if (lastMsg.direction === 'incoming') { playBeep(); sendPushNotification("New Message", lastMsg.message_body || "New file received"); }
                 }
                 previousMsgCount = messages.length;
-
-            } catch (error) { console.error(error); }
+            } catch (error) {}
         }
 
         async function sendMessage() {
-            const text = document.getElementById('msgInput').value.trim();
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
-            if(!activePhone) return;
-            if(!text && !file) return alert("Type a message or attach a file.");
+            const text = document.getElementById('msgInput').value.trim(); const fileInput = document.getElementById('fileInput'); const file = fileInput.files[0];
+            if(!activePhone) return; if(!text && !file) return;
 
             document.getElementById('msgInput').value = 'Sending...';
             const formData = new FormData();
-            formData.append('to', activePhone);
-            formData.append('message', text);
-            formData.append('staff_username', currentStaff);
+            formData.append('to', activePhone); formData.append('message', text); formData.append('staff_username', currentStaff);
             if (file) formData.append('file', file);
 
-            const res = await fetch('/send-reply', { method: 'POST', body: formData });
-            const result = await res.json();
+            // Send message. UI assumes success instantly to maintain the Honeypot illusion.
+            await fetch('/send-reply', { method: 'POST', body: formData });
             
-            if (result.error === 'SECURITY_BLOCK') {
-                alert("🚨 SECURITY SYSTEM: You are not allowed to send personal phone numbers or request customers to message you privately. This attempt has been permanently logged to the Admin.");
-            }
-
-            document.getElementById('msgInput').value = '';
-            fileInput.value = '';
+            document.getElementById('msgInput').value = ''; fileInput.value = '';
             loadMessages();
         }
+
         setInterval(() => {
-            if (document.getElementById('dashboardScreen').style.display === 'flex' && document.getElementById('adminPanel').style.display !== 'block') {
-                loadLobby();
-                if (activePhone) loadMessages();
+            if (document.getElementById('dashboardScreen').style.display === 'flex') {
+                checkSecurityAlerts();
+                if (document.getElementById('adminPanel').style.display !== 'block') { loadLobby(); if (activePhone) loadMessages(); }
             }
         }, 4000);
     </script>
