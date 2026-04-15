@@ -273,6 +273,12 @@
                     if(cust.status === 'closed') return; 
                     if(cust.status === 'open') currentOpenCount++;
 
+                    // NUMBER MASKING LOGIC
+                    let displayPhone = cust.phone_number;
+                    if (currentRole !== 'admin' && cust.phone_number.length > 4) {
+                        displayPhone = 'Client-****' + cust.phone_number.slice(-4);
+                    }
+
                     const div = document.createElement('div');
                     div.className = `customer-item ${cust.phone_number === activePhone ? 'active' : ''}`;
                     let statusHtml = '';
@@ -282,12 +288,13 @@
                         const isMe = cust.assigned_to === currentStaff;
                         statusHtml = `<span class="status-badge"><span class="status-dot assigned"></span>${isMe ? 'My Chat' : cust.assigned_to}</span>`;
                     }
-                    div.innerHTML = `<div><strong>${cust.phone_number}</strong></div> ${statusHtml}`;
-                    div.onclick = () => selectCustomer(cust.phone_number, cust.status, cust.assigned_to);
+                    div.innerHTML = `<div><strong>${displayPhone}</strong></div> ${statusHtml}`;
+                    
+                    // We still pass the real phone quietly to the system so it knows who to message
+                    div.onclick = () => selectCustomer(cust.phone_number, displayPhone, cust.status, cust.assigned_to);
                     list.appendChild(div);
                 });
 
-                // Trigger Alarm if new customer arrived
                 if (currentOpenCount > previousOpenCount && previousOpenCount !== 0) {
                     playBeep();
                     sendPushNotification("Akhanet Alert", "A new customer is waiting in the Lobby.");
@@ -297,15 +304,17 @@
             } catch (err) { console.error(err); }
         }
 
-        function selectCustomer(phone, status, owner) {
+        function selectCustomer(phone, displayPhone, status, owner) {
             activePhone = phone;
             activeCustomerStatus = status;
             activeCustomerOwner = owner;
-            previousMsgCount = 0; // Reset message tracker for new chat
+            previousMsgCount = 0; 
             
             document.getElementById('lockOverlay').style.display = 'none';
             document.getElementById('chatHeader').style.display = 'flex';
-            document.getElementById('activeChatTitle').innerText = phone;
+            
+            // Show masked phone in header
+            document.getElementById('activeChatTitle').innerText = displayPhone;
             
             updateChatControls();
             loadMessages();
@@ -403,12 +412,17 @@
             formData.append('staff_username', currentStaff);
             if (file) formData.append('file', file);
 
-            await fetch('/send-reply', { method: 'POST', body: formData });
+            const res = await fetch('/send-reply', { method: 'POST', body: formData });
+            const result = await res.json();
+            
+            if (result.error === 'SECURITY_BLOCK') {
+                alert("🚨 SECURITY SYSTEM: You are not allowed to send personal phone numbers or request customers to message you privately. This attempt has been permanently logged to the Admin.");
+            }
+
             document.getElementById('msgInput').value = '';
             fileInput.value = '';
             loadMessages();
         }
-
         setInterval(() => {
             if (document.getElementById('dashboardScreen').style.display === 'flex' && document.getElementById('adminPanel').style.display !== 'block') {
                 loadLobby();
