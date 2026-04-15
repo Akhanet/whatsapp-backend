@@ -80,7 +80,7 @@ app.post('/webhook', async (req, res) => {
                     Reply naturally. Briefly answer their question if possible based on your services. 
                     Always end by letting them know a human agent has been notified and will claim their chat shortly. Keep it under 3 sentences.`;
                     
-                    const aiResponse = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+                    const aiResponse = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
                         contents: [{ parts: [{ text: aiPrompt }] }]
                     });
                     
