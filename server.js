@@ -139,15 +139,17 @@ app.post('/send-reply', upload.single('file'), async (req, res) => {
             const form = new FormData();
             form.append('messaging_product', 'whatsapp');
             
-            // FIX: Translate memory buffer to stream format
-            form.append('file', Readable.from(file.buffer), { 
-                filename: file.originalname, 
-                contentType: file.mimetype, 
-                knownLength: file.size 
-            });
+            // FIX 1: Simplify the buffer attachment
+            form.append('file', file.buffer, { filename: file.originalname });
             
+            // FIX 2: Force Axios to accept large file payloads without dropping them
             const uploadRes = await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/media`, form, { 
-                headers: { ...form.getHeaders(), Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}` } 
+                headers: { 
+                    ...form.getHeaders(), 
+                    'Authorization': `Bearer ${process.env.META_PERMANENT_TOKEN}` 
+                },
+                maxBodyLength: Infinity,
+                maxContentLength: Infinity
             });
             
             mediaId = uploadRes.data.id;
