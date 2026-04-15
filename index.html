@@ -84,7 +84,7 @@
         <div class="login-box">
             <h2>Akhanet Portal</h2>
             <div id="loginError" class="error-msg">Incorrect username or passcode.</div>
-            <input type="text" id="username" placeholder="Username (e.g. simple_akhanet)">
+            <input type="text" id="username" placeholder="Username (e.g. staff_mary)">
             <input type="password" id="passcode" placeholder="Passcode">
             <button onclick="attemptLogin()">Log In to Workspace</button>
         </div>
@@ -98,26 +98,22 @@
                     <div id="loggedInUser" class="user-info"></div>
                     <button id="adminBtn" class="admin-btn" onclick="openAdminPanel()">👑 Admin Tools</button>
                 </div>
-                <button class="logout-btn" onclick="location.reload()">Log Out</button>
+                <button class="logout-btn" onclick="logout()">Log Out</button>
             </div>
             <div class="customer-list" id="lobbyList"></div>
         </div>
 
         <div class="main-content">
-            
             <div id="adminPanel">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2 style="color: var(--primary);">👑 Admin Tools</h2>
                     <button onclick="closeAdminPanel()" style="padding: 8px 16px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer;">Close Panel</button>
                 </div>
-                
                 <div class="admin-tabs">
                     <button id="tabPayroll" class="tab-btn active" onclick="loadPayroll()">📊 Payroll</button>
                     <button id="tabArchive" class="tab-btn" onclick="loadArchive()">📁 Chat Archive</button>
                 </div>
-
-                <div id="adminContent">
-                    </div>
+                <div id="adminContent"></div>
             </div>
 
             <div id="lockOverlay">Select a customer from the lobby to view chat.</div>
@@ -145,6 +141,41 @@
         let activeCustomerStatus = '';
         let activeCustomerOwner = '';
 
+        // Notification Trackers
+        let previousOpenCount = 0;
+        let previousMsgCount = 0;
+
+        // SYSTEM AUDIO BEEP
+        function playBeep() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctx.currentTime); 
+                osc.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.1);
+            } catch(e) {}
+        }
+
+        // BROWSER NOTIFICATION
+        function sendPushNotification(title, body) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(title, { body: body });
+            }
+        }
+
+        // AUTO-LOGIN CHECK (PERSISTENT SESSION)
+        window.onload = () => {
+            const savedUser = localStorage.getItem('akhanet_user');
+            const savedRole = localStorage.getItem('akhanet_role');
+            if (savedUser && savedRole) {
+                currentStaff = savedUser;
+                currentRole = savedRole;
+                enterWorkspace();
+            }
+        };
+
         // LOGIN
         async function attemptLogin() {
             const user = document.getElementById('username').value.trim();
@@ -159,31 +190,48 @@
                 if (data.success) {
                     currentStaff = data.username;
                     currentRole = data.role;
-                    document.getElementById('loggedInUser').innerText = `${currentRole.toUpperCase()}: ${currentStaff}`;
-                    if (currentRole === 'admin') document.getElementById('adminBtn').style.display = 'block';
-                    document.getElementById('loginScreen').style.display = 'none';
-                    document.getElementById('dashboardScreen').style.display = 'flex';
-                    loadLobby();
+                    
+                    // Save to persistent memory
+                    localStorage.setItem('akhanet_user', currentStaff);
+                    localStorage.setItem('akhanet_role', currentRole);
+                    
+                    enterWorkspace();
                 } else { document.getElementById('loginError').style.display = 'block'; }
             } catch (err) { alert("Server error."); }
         }
 
-        // ADMIN PANEL LOGIC
+        function enterWorkspace() {
+            document.getElementById('loggedInUser').innerText = `${currentRole.toUpperCase()}: ${currentStaff}`;
+            if (currentRole === 'admin') document.getElementById('adminBtn').style.display = 'block';
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('dashboardScreen').style.display = 'flex';
+            
+            // Ask for Notification Permissions
+            if ("Notification" in window && Notification.permission !== "granted") {
+                Notification.requestPermission();
+            }
+            loadLobby();
+        }
+
+        // LOGOUT (CLEAR SESSION)
+        function logout() {
+            localStorage.removeItem('akhanet_user');
+            localStorage.removeItem('akhanet_role');
+            location.reload();
+        }
+
+        // ADMIN PANEL
         function openAdminPanel() {
             document.getElementById('adminPanel').style.display = 'block';
-            loadPayroll(); // Default view
+            loadPayroll(); 
         }
-        function closeAdminPanel() {
-            document.getElementById('adminPanel').style.display = 'none';
-        }
+        function closeAdminPanel() { document.getElementById('adminPanel').style.display = 'none'; }
 
         async function loadPayroll() {
             document.getElementById('tabPayroll').classList.add('active');
             document.getElementById('tabArchive').classList.remove('active');
-            
             const res = await fetch('/api/admin/staff');
             const staffStats = await res.json();
-            
             let html = `<table class="payroll-table"><thead><tr><th>Username</th><th>Role</th><th>Deals Closed</th></tr></thead><tbody>`;
             staffStats.forEach(staff => {
                 const highlight = staff.role === 'admin' ? 'style="background: #f0f2f5; font-weight: bold;"' : '';
@@ -196,35 +244,21 @@
         async function loadArchive() {
             document.getElementById('tabArchive').classList.add('active');
             document.getElementById('tabPayroll').classList.remove('active');
-            
             const res = await fetch('/api/admin/archive');
             const closedChats = await res.json();
-            
             let html = `<div class="archive-list">`;
             if (closedChats.length === 0) html += `<p>No closed chats found.</p>`;
-            
             closedChats.forEach(cust => {
                 const date = new Date(cust.last_messaged_at).toLocaleDateString();
-                html += `
-                    <div class="archive-item" onclick="openArchivedChat('${cust.phone_number}', '${cust.assigned_to}')">
-                        <div>
-                            <strong>${cust.phone_number}</strong><br>
-                            <span style="font-size: 0.8rem; color: #666;">Closed on: ${date}</span>
-                        </div>
-                        <span class="status-badge">Handled by: ${cust.assigned_to}</span>
-                    </div>
-                `;
+                html += `<div class="archive-item" onclick="openArchivedChat('${cust.phone_number}', '${cust.assigned_to}')"><div><strong>${cust.phone_number}</strong><br><span style="font-size: 0.8rem; color: #666;">Closed: ${date}</span></div><span class="status-badge">Handled by: ${cust.assigned_to}</span></div>`;
             });
             html += `</div>`;
             document.getElementById('adminContent').innerHTML = html;
         }
 
-        function openArchivedChat(phone, owner) {
-            closeAdminPanel();
-            selectCustomer(phone, 'closed', owner);
-        }
+        function openArchivedChat(phone, owner) { closeAdminPanel(); selectCustomer(phone, 'closed', owner); }
 
-        // LOAD LOBBY
+        // LOAD LOBBY WITH NOTIFICATIONS
         async function loadLobby() {
             if(!currentStaff) return;
             try {
@@ -233,11 +267,14 @@
                 const list = document.getElementById('lobbyList');
                 list.innerHTML = '';
 
+                let currentOpenCount = 0;
+
                 customers.forEach(cust => {
                     if(cust.status === 'closed') return; 
+                    if(cust.status === 'open') currentOpenCount++;
+
                     const div = document.createElement('div');
                     div.className = `customer-item ${cust.phone_number === activePhone ? 'active' : ''}`;
-                    
                     let statusHtml = '';
                     if (cust.status === 'open') {
                         statusHtml = `<span class="status-badge"><span class="status-dot open"></span>Waiting</span>`;
@@ -249,14 +286,22 @@
                     div.onclick = () => selectCustomer(cust.phone_number, cust.status, cust.assigned_to);
                     list.appendChild(div);
                 });
+
+                // Trigger Alarm if new customer arrived
+                if (currentOpenCount > previousOpenCount && previousOpenCount !== 0) {
+                    playBeep();
+                    sendPushNotification("Akhanet Alert", "A new customer is waiting in the Lobby.");
+                }
+                previousOpenCount = currentOpenCount;
+
             } catch (err) { console.error(err); }
         }
 
-        // SELECT CUSTOMER
         function selectCustomer(phone, status, owner) {
             activePhone = phone;
             activeCustomerStatus = status;
             activeCustomerOwner = owner;
+            previousMsgCount = 0; // Reset message tracker for new chat
             
             document.getElementById('lockOverlay').style.display = 'none';
             document.getElementById('chatHeader').style.display = 'flex';
@@ -267,14 +312,12 @@
             loadLobby(); 
         }
 
-        // CHAT CONTROLS & LOCKS
         function updateChatControls() {
             const controls = document.getElementById('chatControls');
             const inputArea = document.getElementById('inputArea');
-
             if (activeCustomerStatus === 'closed') {
-                controls.innerHTML = `<span style="color: #666; font-size: 0.9rem; background: #eee; padding: 4px 8px; border-radius: 4px;">📁 Archived File (Handled by ${activeCustomerOwner})</span>`;
-                inputArea.style.display = 'none'; // Lock typing for archived chats
+                controls.innerHTML = `<span style="color: #666; font-size: 0.9rem; background: #eee; padding: 4px 8px; border-radius: 4px;">📁 Archived</span>`;
+                inputArea.style.display = 'none'; 
             } else if (activeCustomerStatus === 'open') {
                 controls.innerHTML = `<button class="action-btn claim-btn" onclick="updateCustomerStatus('assigned', '${currentStaff}')">✋ Attend to Customer</button>`;
                 inputArea.style.display = 'none'; 
@@ -283,7 +326,7 @@
                 inputArea.style.display = 'flex'; 
             } else if (activeCustomerStatus === 'assigned' && activeCustomerOwner !== currentStaff) {
                 if (currentRole === 'admin') {
-                    controls.innerHTML = `<span style="color: #d32f2f; font-weight: bold; background: white; padding: 4px 8px; border-radius: 4px;">👀 Spy Mode (Agent: ${activeCustomerOwner})</span>`;
+                    controls.innerHTML = `<span style="color: #d32f2f; font-weight: bold; background: white; padding: 4px 8px; border-radius: 4px;">👀 Spy Mode</span>`;
                     inputArea.style.display = 'flex'; 
                 } else {
                     controls.innerHTML = `<span style="color: #666; font-size: 0.9rem;">🔒 Handled by ${activeCustomerOwner}</span>`;
@@ -292,7 +335,6 @@
             }
         }
 
-        // CLAIM OR CLOSE CHAT
         async function updateCustomerStatus(newStatus, assignedTo) {
             await fetch('/api/customers/update', {
                 method: 'POST',
@@ -301,11 +343,10 @@
             });
             activeCustomerStatus = newStatus;
             activeCustomerOwner = assignedTo;
-            
             if (newStatus === 'closed') {
                 activePhone = '';
                 document.getElementById('lockOverlay').style.display = 'flex';
-                document.getElementById('lockOverlay').innerText = "Job logged for payroll. Select another customer.";
+                document.getElementById('lockOverlay').innerText = "Job logged for payroll.";
                 document.getElementById('chatHeader').style.display = 'none';
                 document.getElementById('inputArea').style.display = 'none';
                 document.getElementById('chatBox').innerHTML = '';
@@ -313,7 +354,7 @@
             loadLobby();
         }
 
-        // LOAD MESSAGES
+        // LOAD MESSAGES WITH NOTIFICATIONS
         async function loadMessages() {
             if(!activePhone) return;
             try {
@@ -334,10 +375,20 @@
                     box.appendChild(div);
                 });
                 box.scrollTop = box.scrollHeight;
+
+                // Trigger Alarm if a new message was received from the customer
+                if (messages.length > previousMsgCount && previousMsgCount !== 0) {
+                    const lastMsg = messages[messages.length - 1];
+                    if (lastMsg.direction === 'incoming') {
+                        playBeep();
+                        sendPushNotification("New Message", lastMsg.message_body || "Sent an attachment");
+                    }
+                }
+                previousMsgCount = messages.length;
+
             } catch (error) { console.error(error); }
         }
 
-        // SEND MESSAGE
         async function sendMessage() {
             const text = document.getElementById('msgInput').value.trim();
             const fileInput = document.getElementById('fileInput');
