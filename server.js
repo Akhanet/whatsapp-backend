@@ -12,14 +12,7 @@ app.use(express.json());
 const upload = multer({ storage: multer.memoryStorage() });
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Security Checkpoint
-app.use((req, res, next) => {
-    if (req.path === '/webhook' || req.path === '/api/login') return next();
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).send('Access Denied');
-    next(); 
-});
-
+// 1. Serve Dashboard (UI handles the login screen now)
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
 
 app.post('/api/login', async (req, res) => {
@@ -62,10 +55,10 @@ app.post('/webhook', async (req, res) => {
             else if (msgData.type === 'image') { media_id = msgData.image.id; media_type = 'image'; } 
             else if (msgData.type === 'document') { media_id = msgData.document.id; media_type = 'document'; msg_body = msgData.document.filename || 'Document'; }
 
-            // 1. Save incoming message
+            // Save incoming message
             await supabase.from('messages').insert([{ sender_phone: from, message_body: msg_body, direction: 'incoming', media_id, media_type }]);
 
-            // 2. Manage Lobby Status
+            // Manage Lobby Status
             let currentStatus = 'open';
             const { data: existingCustomer } = await supabase.from('customers').select('*').eq('phone_number', from).single();
             
@@ -78,11 +71,11 @@ app.post('/webhook', async (req, res) => {
                 currentStatus = existingCustomer.status;
             }
 
-            // 3. GEMINI AI RECEPTIONIST LOGIC
+            // GEMINI AI RECEPTIONIST LOGIC
             if (currentStatus === 'open' && msg_body && !media_id && process.env.GEMINI_API_KEY) {
                 try {
                     const aiPrompt = `You are the friendly automated receptionist for Akhanet Computer Business Centre. You are headquartered in Benin City, but proudly provide services to the entire Nigeria and to Nigerians in the diaspora. 
-                    Your available services include Affidavits, CAC registration, Online Application, NIN reprinting, academic result checking, web design, and Graphics Design Service.
+                    Your available services include CAC registration, NIN reprinting, academic result checking, web design, and printing.
                     A customer just messaged: "${msg_body}".
                     Reply naturally. Briefly answer their question if possible based on your services. 
                     Always end by letting them know a human agent has been notified and will claim their chat shortly. Keep it under 3 sentences.`;
