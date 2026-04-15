@@ -207,6 +207,10 @@ app.post('/api/admin/alerts/clear', async (req, res) => {
     await supabase.from('security_alerts').update({ status: 'read' }).eq('id', req.body.id);
     res.json({ success: true });
 });
-
+// NEW: Fetch ALL security alerts for the Admin Log tab
+app.get('/api/admin/alerts/all', async (req, res) => {
+    const { data } = await supabase.from('security_alerts').select('*').order('created_at', { ascending: false });
+    res.json(data || []);
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
