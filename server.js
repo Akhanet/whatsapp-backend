@@ -5,7 +5,8 @@ const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
 const multer = require('multer');
 const FormData = require('form-data');
-const { Readable } = require('stream'); // NEW: Translates memory to file format
+const fs = require('fs'); // NEW: Built-in tool to manage physical files
+const os = require('os'); // NEW: Built-in tool to find the server's temp folder
 
 const app = express();
 app.use(express.json());
@@ -139,18 +140,17 @@ app.post('/send-reply', upload.single('file'), async (req, res) => {
             const form = new FormData();
             form.append('messaging_product', 'whatsapp');
             
-            // FIX 1: Simplify the buffer attachment
-            form.append('file', file.buffer, { filename: file.originalname });
+            // THE ULTIMATE FIX: Save physical file, upload it, then delete it.
+            const tempFilePath = path.join(os.tmpdir(), file.originalname);
+            fs.writeFileSync(tempFilePath, file.buffer); // Save to disk
             
-            // FIX 2: Force Axios to accept large file payloads without dropping them
+            form.append('file', fs.createReadStream(tempFilePath)); // Give Meta the physical file
+            
             const uploadRes = await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/media`, form, { 
-                headers: { 
-                    ...form.getHeaders(), 
-                    'Authorization': `Bearer ${process.env.META_PERMANENT_TOKEN}` 
-                },
-                maxBodyLength: Infinity,
-                maxContentLength: Infinity
+                headers: { ...form.getHeaders(), Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}` } 
             });
+            
+            fs.unlinkSync(tempFilePath); // Delete from disk to stay clean
             
             mediaId = uploadRes.data.id;
             mediaType = file.mimetype.startsWith('image/') ? 'image' : 'document';
