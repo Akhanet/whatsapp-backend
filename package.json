@@ -1,7 +1,7 @@
 {
   "name": "whatsapp-backend",
   "version": "1.0.0",
-  "description": "Backend for WhatsApp API",
+  "description": "Akhanet WhatsApp API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -14,3 +14,4 @@
     "form-data": "^4.0.0",
     "multer": "^1.4.5-lts.1"
   }
+}
