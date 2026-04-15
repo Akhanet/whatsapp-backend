@@ -133,6 +133,33 @@ app.post('/send-reply', upload.single('file'), async (req, res) => {
         res.status(200).json({ success: true });
     } catch (error) { res.status(500).json({ error: 'Failed to send' }); }
 });
+// 8. Fetch the Lobby List (Sorted by newest message)
+app.get('/api/customers', async (req, res) => {
+    const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .order('last_messaged_at', { ascending: false });
+    if (error) return res.status(500).json(error);
+    res.json(data);
+});
 
+// 9. Claim a Chat or Close a Deal
+app.post('/api/customers/update', async (req, res) => {
+    const { phone, status, assigned_to } = req.body;
+    
+    // Update the customer's status in the database
+    const updateData = { status: status };
+    if (assigned_to !== undefined) updateData.assigned_to = assigned_to;
+    await supabase.from('customers').update(updateData).eq('phone_number', phone);
+
+    // If a staff member clicks "Close Deal", add +1 to their payroll tracker
+    if (status === 'closed' && assigned_to) {
+        const { data: staffData } = await supabase.from('staff').select('deals_closed').eq('username', assigned_to).single();
+        if (staffData) {
+            await supabase.from('staff').update({ deals_closed: staffData.deals_closed + 1 }).eq('username', assigned_to);
+        }
+    }
+    res.json({ success: true });
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
