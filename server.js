@@ -161,5 +161,14 @@ app.post('/api/customers/update', async (req, res) => {
     }
     res.json({ success: true });
 });
+// 10. Admin Only: Fetch Payroll & Performance Stats
+app.get('/api/admin/staff', async (req, res) => {
+    const { data, error } = await supabase
+        .from('staff')
+        .select('username, role, deals_closed')
+        .order('deals_closed', { ascending: false });
+    if (error) return res.status(500).json(error);
+    res.json(data);
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
