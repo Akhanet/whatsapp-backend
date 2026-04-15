@@ -41,6 +41,7 @@ app.get('/webhook', (req, res) => {
     } else { res.sendStatus(403); }
 });
 
+// WEBHOOK: INCOMING MESSAGES (Customer Check)
 app.post('/webhook', async (req, res) => {
     const body = req.body;
     if (body.object === 'whatsapp_business_account') {
@@ -52,6 +53,31 @@ app.post('/webhook', async (req, res) => {
             if (msgData.type === 'text') { msg_body = msgData.text.body; } 
             else if (msgData.type === 'image') { media_id = msgData.image.id; media_type = 'image'; } 
             else if (msgData.type === 'document') { media_id = msgData.document.id; media_type = 'document'; msg_body = msgData.document.filename || 'Document'; }
+
+            // --- CUSTOMER HONEYPOT CHECK ---
+            let isCustomerPoaching = false;
+            if (msg_body && process.env.GEMINI_API_KEY) {
+                try {
+                    const checkPrompt = `Does this customer message contain a personal phone number, an email address, or an attempt to ask the business to chat privately off this official platform? Message: "${msg_body}". Reply ONLY "YES" or "NO".`;
+                    const aiCheck = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, { contents: [{ parts: [{ text: checkPrompt }] }] });
+                    if (aiCheck.data.candidates[0].content.parts[0].text.trim().toUpperCase().includes('YES')) isCustomerPoaching = true;
+                } catch(e) {}
+            }
+
+            if (isCustomerPoaching) {
+                // 1. Alert the Admin secretly
+                await supabase.from('security_alerts').insert([{ culprit_type: 'Customer', culprit_name: from, attempted_message: msg_body }]);
+                
+                // 2. Reply to customer as the "Business" pretending nothing is wrong
+                const fakeReply = "Thanks! However, for security and record tracking, Akhanet policy requires us to keep all business communications on this official line. How can we assist you further here?";
+                await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`, {
+                    messaging_product: "whatsapp", to: from, type: "text", text: { body: fakeReply }
+                }, { headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}`, 'Content-Type': 'application/json' } });
+                
+                // 3. Return 200 OK without saving to messages table (Staff never sees it)
+                return res.sendStatus(200);
+            }
+            // -------------------------------
 
             await supabase.from('messages').insert([{ sender_phone: from, message_body: msg_body, direction: 'incoming', media_id, media_type }]);
 
@@ -75,10 +101,7 @@ app.post('/webhook', async (req, res) => {
                     Reply naturally. Briefly answer their question if possible based on your services. 
                     Always end by letting them know a human agent has been notified and will claim their chat shortly. Keep it under 3 sentences.`;
                     
-                    const aiResponse = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-                        contents: [{ parts: [{ text: aiPrompt }] }]
-                    });
-                    
+                    const aiResponse = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, { contents: [{ parts: [{ text: aiPrompt }] }] });
                     const aiReplyText = aiResponse.data.candidates[0].content.parts[0].text;
 
                     await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`, {
@@ -93,37 +116,38 @@ app.post('/webhook', async (req, res) => {
     } else { res.sendStatus(404); }
 });
 
-// NEW: SECURITY WATCHDOG INTERCEPTOR
+// SEND-REPLY: OUTGOING MESSAGES (Staff Check)
 app.post('/send-reply', upload.single('file'), async (req, res) => {
     const { to, message, staff_username } = req.body;
     const file = req.file;
 
-    // --- AI WATCHDOG CHECK ---
+    // --- STAFF HONEYPOT CHECK ---
+    let isStaffPoaching = false;
     if (message && process.env.GEMINI_API_KEY) {
         try {
-            const watchdogPrompt = `You are a strict corporate security system for Akhanet. Does the following message contain a personal phone number, an email address, a social media handle (like IG/Twitter), or any attempt to ask the customer to message them privately off this platform? 
-            Message to check: "${message}". 
-            Reply ONLY with the word "YES" if it contains forbidden contact info or poaching attempts, or "NO" if it is safe.`;
-
-            const aiCheck = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-                contents: [{ parts: [{ text: watchdogPrompt }] }]
-            });
-
-            const verdict = aiCheck.data.candidates[0].content.parts[0].text.trim().toUpperCase();
-
-            if (verdict.includes('YES')) {
-                // Log the violation in the chat for the Admin to see
-                await supabase.from('messages').insert([{
-                    sender_phone: to,
-                    message_body: `🚨 SECURITY ALERT: Agent [${staff_username}] attempted to send restricted contact info. Message blocked. Original text: "${message}"`,
-                    direction: 'outgoing',
-                    staff_username: '🤖 Watchdog'
-                }]);
-                return res.status(403).json({ success: false, error: 'SECURITY_BLOCK' });
-            }
-        } catch (e) { console.error("Watchdog bypass due to error.", e); }
+            const watchdogPrompt = `You are a strict corporate security system for Akhanet. Does the following message contain a personal phone number, an email address, a social media handle (like IG/Twitter), or any attempt to ask the customer to message them privately off this platform? Message: "${message}". Reply ONLY "YES" or "NO".`;
+            const aiCheck = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, { contents: [{ parts: [{ text: watchdogPrompt }] }] });
+            if (aiCheck.data.candidates[0].content.parts[0].text.trim().toUpperCase().includes('YES')) isStaffPoaching = true;
+        } catch (e) { }
     }
-    // -------------------------
+
+    if (isStaffPoaching) {
+        // 1. Save staff's message to dashboard so they think it sent
+        await supabase.from('messages').insert([{ sender_phone: to, message_body: message, direction: 'outgoing', staff_username: staff_username }]);
+        
+        // 2. Alert the Admin secretly
+        await supabase.from('security_alerts').insert([{ culprit_type: 'Staff', culprit_name: staff_username, attempted_message: message }]);
+        
+        // 3. Generate fake customer reply back to the staff to complete the illusion
+        setTimeout(async () => {
+            const fakeCustomerReply = "Okay, I have saved your number. I will message you there shortly.";
+            await supabase.from('messages').insert([{ sender_phone: to, message_body: fakeCustomerReply, direction: 'incoming' }]);
+        }, 3000); // 3 second delay to look natural
+
+        // Return success instantly so UI doesn't freeze. Meta API is bypassed completely.
+        return res.status(200).json({ success: true, honeypot: true });
+    }
+    // ----------------------------
 
     try {
         let mediaId = null, mediaType = null, payload = { messaging_product: "whatsapp", to: to };
@@ -131,9 +155,7 @@ app.post('/send-reply', upload.single('file'), async (req, res) => {
             const form = new FormData();
             form.append('messaging_product', 'whatsapp');
             form.append('file', file.buffer, { filename: file.originalname, contentType: file.mimetype });
-            const uploadRes = await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/media`, form, {
-                headers: { ...form.getHeaders(), Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}` }
-            });
+            const uploadRes = await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/media`, form, { headers: { ...form.getHeaders(), Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}` } });
             mediaId = uploadRes.data.id;
             mediaType = file.mimetype.startsWith('image/') ? 'image' : 'document';
             payload.type = mediaType;
@@ -142,12 +164,9 @@ app.post('/send-reply', upload.single('file'), async (req, res) => {
         } else {
             payload.type = "text"; payload.text = { body: message };
         }
-        await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`, payload, {
-            headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}`, 'Content-Type': 'application/json' }
-        });
-        await supabase.from('messages').insert([{ 
-            sender_phone: to, message_body: message || file.originalname, direction: 'outgoing', media_id: mediaId, media_type: mediaType, staff_username: staff_username 
-        }]);
+        await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`, payload, { headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}`, 'Content-Type': 'application/json' } });
+        
+        await supabase.from('messages').insert([{ sender_phone: to, message_body: message || file.originalname, direction: 'outgoing', media_id: mediaId, media_type: mediaType, staff_username: staff_username }]);
         res.status(200).json({ success: true });
     } catch (error) { res.status(500).json({ error: 'Failed' }); }
 });
@@ -162,7 +181,6 @@ app.post('/api/customers/update', async (req, res) => {
     const updateData = { status: status };
     if (assigned_to !== undefined) updateData.assigned_to = assigned_to;
     await supabase.from('customers').update(updateData).eq('phone_number', phone);
-
     if (status === 'closed' && assigned_to) {
         const { data: staffData } = await supabase.from('staff').select('deals_closed').eq('username', assigned_to).single();
         if (staffData) await supabase.from('staff').update({ deals_closed: staffData.deals_closed + 1 }).eq('username', assigned_to);
@@ -178,6 +196,16 @@ app.get('/api/admin/staff', async (req, res) => {
 app.get('/api/admin/archive', async (req, res) => {
     const { data } = await supabase.from('customers').select('*').eq('status', 'closed').order('last_messaged_at', { ascending: false });
     res.json(data || []);
+});
+
+// NEW: Admin Security Fetch
+app.get('/api/admin/alerts', async (req, res) => {
+    const { data } = await supabase.from('security_alerts').select('*').eq('status', 'unread').order('created_at', { ascending: false });
+    res.json(data || []);
+});
+app.post('/api/admin/alerts/clear', async (req, res) => {
+    await supabase.from('security_alerts').update({ status: 'read' }).eq('id', req.body.id);
+    res.json({ success: true });
 });
 
 const PORT = process.env.PORT || 3000;
