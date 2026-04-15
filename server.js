@@ -5,6 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
 const multer = require('multer');
 const FormData = require('form-data');
+const { Readable } = require('stream'); // NEW: Translates memory to file format
 
 const app = express();
 app.use(express.json());
@@ -137,8 +138,13 @@ app.post('/send-reply', upload.single('file'), async (req, res) => {
         if (file) {
             const form = new FormData();
             form.append('messaging_product', 'whatsapp');
-            // Provide the exact file size (knownLength) so Meta accepts the data stream
-            form.append('file', file.buffer, { filename: file.originalname, contentType: file.mimetype, knownLength: file.size });
+            
+            // FIX: Translate memory buffer to stream format
+            form.append('file', Readable.from(file.buffer), { 
+                filename: file.originalname, 
+                contentType: file.mimetype, 
+                knownLength: file.size 
+            });
             
             const uploadRes = await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/media`, form, { 
                 headers: { ...form.getHeaders(), Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}` } 
@@ -150,21 +156,15 @@ app.post('/send-reply', upload.single('file'), async (req, res) => {
             payload.type = mediaType;
             payload[mediaType] = { id: mediaId };
             if (message) payload[mediaType].caption = message;
-            
-            // Explicitly tell Meta the document filename
-            if (mediaType === 'document') {
-                payload[mediaType].filename = file.originalname;
-            }
+            if (mediaType === 'document') payload[mediaType].filename = file.originalname;
         } else {
             payload.type = "text"; payload.text = { body: message };
         }
 
-        // Send to Meta
         await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`, payload, { 
             headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}`, 'Content-Type': 'application/json' } 
         });
         
-        // Save to Database
         await supabase.from('messages').insert([{ sender_phone: to, message_body: message || file.originalname, direction: 'outgoing', media_id: mediaId, media_type: mediaType, staff_username: staff_username }]);
         
         res.status(200).json({ success: true });
