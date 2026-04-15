@@ -170,5 +170,15 @@ app.get('/api/admin/staff', async (req, res) => {
     if (error) return res.status(500).json(error);
     res.json(data);
 });
+// 11. Admin Only: Fetch Closed Chats (Archive)
+app.get('/api/admin/archive', async (req, res) => {
+    const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('status', 'closed')
+        .order('last_messaged_at', { ascending: false });
+    if (error) return res.status(500).json(error);
+    res.json(data);
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
