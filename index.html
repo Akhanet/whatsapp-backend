@@ -23,7 +23,6 @@
         .header { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
         .user-info { font-size: 0.9rem; font-weight: 500; }
         
-        /* ADMIN BUTTON */
         .admin-btn { background: #FFC107; color: #333; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; margin-top: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
         .logout-btn { background: transparent; border: 1px solid white; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
         
@@ -39,11 +38,18 @@
         /* CHAT AREA & ADMIN PANEL */
         .main-content { flex: 1; display: flex; flex-direction: column; background: #e5ddd5; position: relative; }
         
-        /* ADMIN PANEL OVERLAY */
         #adminPanel { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 20; padding: 40px; overflow-y: auto; }
-        .payroll-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .admin-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .tab-btn { padding: 10px 20px; border: none; background: #eee; cursor: pointer; border-radius: 4px; font-weight: bold; color: #555; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        
+        .payroll-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         .payroll-table th, .payroll-table td { padding: 15px; text-align: left; border-bottom: 1px solid #ddd; }
         .payroll-table th { background-color: var(--primary); color: white; }
+
+        .archive-list { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+        .archive-item { background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .archive-item:hover { background: #eee; }
 
         .chat-header { background: #f0f2f5; padding: 15px 20px; border-bottom: 1px solid #ddd; display: flex; align-items: center; justify-content: space-between;}
         .chat-title { font-weight: bold; font-size: 1.1rem; color: #333; }
@@ -90,7 +96,7 @@
                 <div>
                     <div style="font-weight: bold; font-size: 1.1rem;">Active Lobby</div>
                     <div id="loggedInUser" class="user-info"></div>
-                    <button id="adminBtn" class="admin-btn" onclick="toggleAdminPanel()">👑 Payroll & Admin</button>
+                    <button id="adminBtn" class="admin-btn" onclick="openAdminPanel()">👑 Admin Tools</button>
                 </div>
                 <button class="logout-btn" onclick="location.reload()">Log Out</button>
             </div>
@@ -101,20 +107,17 @@
             
             <div id="adminPanel">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="color: var(--primary);">📊 Staff Performance & Payroll</h2>
-                    <button onclick="toggleAdminPanel()" style="padding: 8px 16px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer;">Close Panel</button>
+                    <h2 style="color: var(--primary);">👑 Admin Tools</h2>
+                    <button onclick="closeAdminPanel()" style="padding: 8px 16px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer;">Close Panel</button>
                 </div>
-                <table class="payroll-table">
-                    <thead>
-                        <tr>
-                            <th>Username</th>
-                            <th>System Role</th>
-                            <th>Deals Closed (Score)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="payrollBody">
-                        </tbody>
-                </table>
+                
+                <div class="admin-tabs">
+                    <button id="tabPayroll" class="tab-btn active" onclick="loadPayroll()">📊 Payroll</button>
+                    <button id="tabArchive" class="tab-btn" onclick="loadArchive()">📁 Chat Archive</button>
+                </div>
+
+                <div id="adminContent">
+                    </div>
             </div>
 
             <div id="lockOverlay">Select a customer from the lobby to view chat.</div>
@@ -155,11 +158,9 @@
                 const data = await res.json();
                 if (data.success) {
                     currentStaff = data.username;
-                    currentRole = data.role; // Store role (admin or agent)
-                    
+                    currentRole = data.role;
                     document.getElementById('loggedInUser').innerText = `${currentRole.toUpperCase()}: ${currentStaff}`;
                     if (currentRole === 'admin') document.getElementById('adminBtn').style.display = 'block';
-
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('dashboardScreen').style.display = 'flex';
                     loadLobby();
@@ -167,28 +168,60 @@
             } catch (err) { alert("Server error."); }
         }
 
-        // TOGGLE ADMIN PANEL
-        async function toggleAdminPanel() {
-            const panel = document.getElementById('adminPanel');
-            if (panel.style.display === 'block') {
-                panel.style.display = 'none';
-            } else {
-                panel.style.display = 'block';
-                const res = await fetch('/api/admin/staff');
-                const staffStats = await res.json();
-                const tbody = document.getElementById('payrollBody');
-                tbody.innerHTML = '';
-                staffStats.forEach(staff => {
-                    const highlight = staff.role === 'admin' ? 'style="background: #f0f2f5; font-weight: bold;"' : '';
-                    tbody.innerHTML += `
-                        <tr ${highlight}>
-                            <td>${staff.username}</td>
-                            <td>${staff.role}</td>
-                            <td style="font-size: 1.2rem; font-weight: bold; color: #1E7C98;">${staff.deals_closed}</td>
-                        </tr>
-                    `;
-                });
-            }
+        // ADMIN PANEL LOGIC
+        function openAdminPanel() {
+            document.getElementById('adminPanel').style.display = 'block';
+            loadPayroll(); // Default view
+        }
+        function closeAdminPanel() {
+            document.getElementById('adminPanel').style.display = 'none';
+        }
+
+        async function loadPayroll() {
+            document.getElementById('tabPayroll').classList.add('active');
+            document.getElementById('tabArchive').classList.remove('active');
+            
+            const res = await fetch('/api/admin/staff');
+            const staffStats = await res.json();
+            
+            let html = `<table class="payroll-table"><thead><tr><th>Username</th><th>Role</th><th>Deals Closed</th></tr></thead><tbody>`;
+            staffStats.forEach(staff => {
+                const highlight = staff.role === 'admin' ? 'style="background: #f0f2f5; font-weight: bold;"' : '';
+                html += `<tr ${highlight}><td>${staff.username}</td><td>${staff.role}</td><td style="font-size: 1.2rem; font-weight: bold; color: #1E7C98;">${staff.deals_closed}</td></tr>`;
+            });
+            html += `</tbody></table>`;
+            document.getElementById('adminContent').innerHTML = html;
+        }
+
+        async function loadArchive() {
+            document.getElementById('tabArchive').classList.add('active');
+            document.getElementById('tabPayroll').classList.remove('active');
+            
+            const res = await fetch('/api/admin/archive');
+            const closedChats = await res.json();
+            
+            let html = `<div class="archive-list">`;
+            if (closedChats.length === 0) html += `<p>No closed chats found.</p>`;
+            
+            closedChats.forEach(cust => {
+                const date = new Date(cust.last_messaged_at).toLocaleDateString();
+                html += `
+                    <div class="archive-item" onclick="openArchivedChat('${cust.phone_number}', '${cust.assigned_to}')">
+                        <div>
+                            <strong>${cust.phone_number}</strong><br>
+                            <span style="font-size: 0.8rem; color: #666;">Closed on: ${date}</span>
+                        </div>
+                        <span class="status-badge">Handled by: ${cust.assigned_to}</span>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+            document.getElementById('adminContent').innerHTML = html;
+        }
+
+        function openArchivedChat(phone, owner) {
+            closeAdminPanel();
+            selectCustomer(phone, 'closed', owner);
         }
 
         // LOAD LOBBY
@@ -234,24 +267,25 @@
             loadLobby(); 
         }
 
-        // THE GOD-VIEW LOGIC
+        // CHAT CONTROLS & LOCKS
         function updateChatControls() {
             const controls = document.getElementById('chatControls');
             const inputArea = document.getElementById('inputArea');
 
-            if (activeCustomerStatus === 'open') {
+            if (activeCustomerStatus === 'closed') {
+                controls.innerHTML = `<span style="color: #666; font-size: 0.9rem; background: #eee; padding: 4px 8px; border-radius: 4px;">📁 Archived File (Handled by ${activeCustomerOwner})</span>`;
+                inputArea.style.display = 'none'; // Lock typing for archived chats
+            } else if (activeCustomerStatus === 'open') {
                 controls.innerHTML = `<button class="action-btn claim-btn" onclick="updateCustomerStatus('assigned', '${currentStaff}')">✋ Attend to Customer</button>`;
                 inputArea.style.display = 'none'; 
             } else if (activeCustomerStatus === 'assigned' && activeCustomerOwner === currentStaff) {
                 controls.innerHTML = `<button class="action-btn close-btn" onclick="updateCustomerStatus('closed', '${currentStaff}')">✅ Mark Job Complete</button>`;
                 inputArea.style.display = 'flex'; 
             } else if (activeCustomerStatus === 'assigned' && activeCustomerOwner !== currentStaff) {
-                // If you are the Admin, unlock the chat anyway
                 if (currentRole === 'admin') {
                     controls.innerHTML = `<span style="color: #d32f2f; font-weight: bold; background: white; padding: 4px 8px; border-radius: 4px;">👀 Spy Mode (Agent: ${activeCustomerOwner})</span>`;
-                    inputArea.style.display = 'flex'; // Admin can override and text the customer!
+                    inputArea.style.display = 'flex'; 
                 } else {
-                    // Normal staff are locked out
                     controls.innerHTML = `<span style="color: #666; font-size: 0.9rem;">🔒 Handled by ${activeCustomerOwner}</span>`;
                     inputArea.style.display = 'none'; 
                 }
