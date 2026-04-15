@@ -15,7 +15,6 @@
         .login-box h2 { color: var(--primary); margin-bottom: 25px; }
         .login-box input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
         .login-box button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        .login-box button:hover { background: var(--primary-hover); }
         .error-msg { color: #d32f2f; margin-bottom: 15px; font-size: 0.9rem; display: none; }
 
         /* DASHBOARD LAYOUT */
@@ -23,18 +22,29 @@
         .sidebar { width: 320px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
         .header { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
         .user-info { font-size: 0.9rem; font-weight: 500; }
+        
+        /* ADMIN BUTTON */
+        .admin-btn { background: #FFC107; color: #333; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; margin-top: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
         .logout-btn { background: transparent; border: 1px solid white; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
         
         .customer-list { flex: 1; overflow-y: auto; }
-        .customer-item { padding: 15px 20px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+        .customer-item { padding: 15px 20px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
         .customer-item:hover { background: #f9f9f9; }
         .customer-item.active { background: var(--light-bg); border-left: 4px solid var(--primary); }
         .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-        .status-dot.open { background-color: #4CAF50; } /* Green for available */
-        .status-dot.assigned { background-color: #FFC107; } /* Yellow for claimed */
+        .status-dot.open { background-color: #4CAF50; } 
+        .status-dot.assigned { background-color: #FFC107; } 
         .status-badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 12px; background: #eee; color: #555; }
 
-        .chat-area { flex: 1; display: flex; flex-direction: column; background: #e5ddd5; }
+        /* CHAT AREA & ADMIN PANEL */
+        .main-content { flex: 1; display: flex; flex-direction: column; background: #e5ddd5; position: relative; }
+        
+        /* ADMIN PANEL OVERLAY */
+        #adminPanel { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 20; padding: 40px; overflow-y: auto; }
+        .payroll-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .payroll-table th, .payroll-table td { padding: 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        .payroll-table th { background-color: var(--primary); color: white; }
+
         .chat-header { background: #f0f2f5; padding: 15px 20px; border-bottom: 1px solid #ddd; display: flex; align-items: center; justify-content: space-between;}
         .chat-title { font-weight: bold; font-size: 1.1rem; color: #333; }
         .action-btn { padding: 8px 16px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; }
@@ -42,22 +52,23 @@
         .close-btn { background: #d32f2f; }
         
         .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 10px 14px; border-radius: 8px; max-width: 75%; line-height: 1.4; font-size: 0.95rem; position: relative; }
-        .msg.incoming { background: white; align-self: flex-start; border-top-left-radius: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .msg.outgoing { background: var(--light-bg); align-self: flex-end; border-top-right-radius: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .msg { padding: 10px 14px; border-radius: 8px; max-width: 75%; line-height: 1.4; font-size: 0.95rem; }
+        .msg.incoming { background: white; align-self: flex-start; border-top-left-radius: 0; }
+        .msg.outgoing { background: var(--light-bg); align-self: flex-end; border-top-right-radius: 0; }
         .msg img { max-width: 100%; max-height: 350px; object-fit: contain; display: block; border-radius: 6px; margin-top: 5px; }
         
         .input-area { padding: 15px 20px; background: #f0f2f5; display: flex; gap: 10px; align-items: center; }
-        .input-area input[type="text"] { flex: 1; padding: 14px; border: none; border-radius: 24px; outline: none; font-size: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .input-area input[type="text"] { flex: 1; padding: 14px; border: none; border-radius: 24px; outline: none; font-size: 1rem; }
         .send-btn { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 24px; cursor: pointer; font-weight: bold; }
-        .attach-btn { background: #fff; color: #555; box-shadow: 0 1px 2px rgba(0,0,0,0.1); border: none; padding: 12px; border-radius: 24px; cursor: pointer;}
+        .attach-btn { background: #fff; color: #555; border: none; padding: 12px; border-radius: 24px; cursor: pointer;}
         
-        #lockOverlay { display: flex; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 10; align-items: center; justify-content: center; font-size: 1.2rem; color: #555; font-weight: bold; text-align: center; padding: 20px; }
+        #lockOverlay { display: flex; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 10; align-items: center; justify-content: center; font-size: 1.2rem; color: #555; font-weight: bold; }
 
         @media (max-width: 768px) {
             #dashboardScreen { flex-direction: column; }
-            .sidebar { width: 100%; height: 40%; border-right: none; border-bottom: 2px solid #ddd; }
-            .chat-area { height: 60%; position: relative; }
+            .sidebar { width: 100%; height: 40%; }
+            .main-content { height: 60%; }
+            #adminPanel { padding: 20px; }
         }
     </style>
 </head>
@@ -67,7 +78,7 @@
         <div class="login-box">
             <h2>Akhanet Portal</h2>
             <div id="loginError" class="error-msg">Incorrect username or passcode.</div>
-            <input type="text" id="username" placeholder="Username (e.g. staff_mary)">
+            <input type="text" id="username" placeholder="Username (e.g. simple_akhanet)">
             <input type="password" id="passcode" placeholder="Passcode">
             <button onclick="attemptLogin()">Log In to Workspace</button>
         </div>
@@ -79,20 +90,38 @@
                 <div>
                     <div style="font-weight: bold; font-size: 1.1rem;">Active Lobby</div>
                     <div id="loggedInUser" class="user-info"></div>
+                    <button id="adminBtn" class="admin-btn" onclick="toggleAdminPanel()">👑 Payroll & Admin</button>
                 </div>
-                <button class="logout-btn" onclick="logout()">Log Out</button>
+                <button class="logout-btn" onclick="location.reload()">Log Out</button>
             </div>
-            <div class="customer-list" id="lobbyList">
-                </div>
+            <div class="customer-list" id="lobbyList"></div>
         </div>
 
-        <div class="chat-area" style="position: relative;">
+        <div class="main-content">
+            
+            <div id="adminPanel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="color: var(--primary);">📊 Staff Performance & Payroll</h2>
+                    <button onclick="toggleAdminPanel()" style="padding: 8px 16px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer;">Close Panel</button>
+                </div>
+                <table class="payroll-table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>System Role</th>
+                            <th>Deals Closed (Score)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payrollBody">
+                        </tbody>
+                </table>
+            </div>
+
             <div id="lockOverlay">Select a customer from the lobby to view chat.</div>
             
             <div class="chat-header" id="chatHeader" style="display: none;">
                 <div class="chat-title" id="activeChatTitle">Chat</div>
-                <div id="chatControls">
-                    </div>
+                <div id="chatControls"></div>
             </div>
             
             <div class="messages" id="chatBox"></div>
@@ -108,6 +137,7 @@
 
     <script>
         let currentStaff = '';
+        let currentRole = '';
         let activePhone = '';
         let activeCustomerStatus = '';
         let activeCustomerOwner = '';
@@ -125,7 +155,11 @@
                 const data = await res.json();
                 if (data.success) {
                     currentStaff = data.username;
-                    document.getElementById('loggedInUser').innerText = `Agent: ${currentStaff}`;
+                    currentRole = data.role; // Store role (admin or agent)
+                    
+                    document.getElementById('loggedInUser').innerText = `${currentRole.toUpperCase()}: ${currentStaff}`;
+                    if (currentRole === 'admin') document.getElementById('adminBtn').style.display = 'block';
+
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('dashboardScreen').style.display = 'flex';
                     loadLobby();
@@ -133,7 +167,29 @@
             } catch (err) { alert("Server error."); }
         }
 
-        function logout() { location.reload(); }
+        // TOGGLE ADMIN PANEL
+        async function toggleAdminPanel() {
+            const panel = document.getElementById('adminPanel');
+            if (panel.style.display === 'block') {
+                panel.style.display = 'none';
+            } else {
+                panel.style.display = 'block';
+                const res = await fetch('/api/admin/staff');
+                const staffStats = await res.json();
+                const tbody = document.getElementById('payrollBody');
+                tbody.innerHTML = '';
+                staffStats.forEach(staff => {
+                    const highlight = staff.role === 'admin' ? 'style="background: #f0f2f5; font-weight: bold;"' : '';
+                    tbody.innerHTML += `
+                        <tr ${highlight}>
+                            <td>${staff.username}</td>
+                            <td>${staff.role}</td>
+                            <td style="font-size: 1.2rem; font-weight: bold; color: #1E7C98;">${staff.deals_closed}</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
 
         // LOAD LOBBY
         async function loadLobby() {
@@ -145,9 +201,7 @@
                 list.innerHTML = '';
 
                 customers.forEach(cust => {
-                    // Don't show closed chats in the main lobby
                     if(cust.status === 'closed') return; 
-
                     const div = document.createElement('div');
                     div.className = `customer-item ${cust.phone_number === activePhone ? 'active' : ''}`;
                     
@@ -158,7 +212,6 @@
                         const isMe = cust.assigned_to === currentStaff;
                         statusHtml = `<span class="status-badge"><span class="status-dot assigned"></span>${isMe ? 'My Chat' : cust.assigned_to}</span>`;
                     }
-
                     div.innerHTML = `<div><strong>${cust.phone_number}</strong></div> ${statusHtml}`;
                     div.onclick = () => selectCustomer(cust.phone_number, cust.status, cust.assigned_to);
                     list.appendChild(div);
@@ -178,24 +231,30 @@
             
             updateChatControls();
             loadMessages();
-            loadLobby(); // Refresh list to show active highlight
+            loadLobby(); 
         }
 
-        // UPDATE BUTTONS & LOCKS
+        // THE GOD-VIEW LOGIC
         function updateChatControls() {
             const controls = document.getElementById('chatControls');
             const inputArea = document.getElementById('inputArea');
-            const overlay = document.getElementById('lockOverlay');
 
             if (activeCustomerStatus === 'open') {
                 controls.innerHTML = `<button class="action-btn claim-btn" onclick="updateCustomerStatus('assigned', '${currentStaff}')">✋ Attend to Customer</button>`;
-                inputArea.style.display = 'none'; // Must claim before typing
+                inputArea.style.display = 'none'; 
             } else if (activeCustomerStatus === 'assigned' && activeCustomerOwner === currentStaff) {
                 controls.innerHTML = `<button class="action-btn close-btn" onclick="updateCustomerStatus('closed', '${currentStaff}')">✅ Mark Job Complete</button>`;
-                inputArea.style.display = 'flex'; // Unlocked for the owner
+                inputArea.style.display = 'flex'; 
             } else if (activeCustomerStatus === 'assigned' && activeCustomerOwner !== currentStaff) {
-                controls.innerHTML = `<span style="color: #666; font-size: 0.9rem;">🔒 Handled by ${activeCustomerOwner}</span>`;
-                inputArea.style.display = 'none'; // Locked out for other staff
+                // If you are the Admin, unlock the chat anyway
+                if (currentRole === 'admin') {
+                    controls.innerHTML = `<span style="color: #d32f2f; font-weight: bold; background: white; padding: 4px 8px; border-radius: 4px;">👀 Spy Mode (Agent: ${activeCustomerOwner})</span>`;
+                    inputArea.style.display = 'flex'; // Admin can override and text the customer!
+                } else {
+                    // Normal staff are locked out
+                    controls.innerHTML = `<span style="color: #666; font-size: 0.9rem;">🔒 Handled by ${activeCustomerOwner}</span>`;
+                    inputArea.style.display = 'none'; 
+                }
             }
         }
 
@@ -210,15 +269,13 @@
             activeCustomerOwner = assignedTo;
             
             if (newStatus === 'closed') {
-                activePhone = ''; // Clear screen if closed
+                activePhone = '';
                 document.getElementById('lockOverlay').style.display = 'flex';
                 document.getElementById('lockOverlay').innerText = "Job logged for payroll. Select another customer.";
                 document.getElementById('chatHeader').style.display = 'none';
                 document.getElementById('inputArea').style.display = 'none';
                 document.getElementById('chatBox').innerHTML = '';
-            } else {
-                updateChatControls();
-            }
+            } else { updateChatControls(); }
             loadLobby();
         }
 
@@ -267,9 +324,8 @@
             loadMessages();
         }
 
-        // Auto-refresh the Lobby and Active Chat
         setInterval(() => {
-            if (document.getElementById('dashboardScreen').style.display === 'flex') {
+            if (document.getElementById('dashboardScreen').style.display === 'flex' && document.getElementById('adminPanel').style.display !== 'block') {
                 loadLobby();
                 if (activePhone) loadMessages();
             }
