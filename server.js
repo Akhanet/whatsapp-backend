@@ -12,7 +12,6 @@ app.use(express.json());
 const upload = multer({ storage: multer.memoryStorage() });
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// 1. Serve Dashboard (UI handles the login screen now)
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
 
 app.post('/api/login', async (req, res) => {
@@ -42,7 +41,6 @@ app.get('/webhook', (req, res) => {
     } else { res.sendStatus(403); }
 });
 
-// MAIN WEBHOOK: CATCH MESSAGES & TRIGGER AI
 app.post('/webhook', async (req, res) => {
     const body = req.body;
     if (body.object === 'whatsapp_business_account') {
@@ -55,10 +53,8 @@ app.post('/webhook', async (req, res) => {
             else if (msgData.type === 'image') { media_id = msgData.image.id; media_type = 'image'; } 
             else if (msgData.type === 'document') { media_id = msgData.document.id; media_type = 'document'; msg_body = msgData.document.filename || 'Document'; }
 
-            // Save incoming message
             await supabase.from('messages').insert([{ sender_phone: from, message_body: msg_body, direction: 'incoming', media_id, media_type }]);
 
-            // Manage Lobby Status
             let currentStatus = 'open';
             const { data: existingCustomer } = await supabase.from('customers').select('*').eq('phone_number', from).single();
             
@@ -71,7 +67,6 @@ app.post('/webhook', async (req, res) => {
                 currentStatus = existingCustomer.status;
             }
 
-            // GEMINI AI RECEPTIONIST LOGIC
             if (currentStatus === 'open' && msg_body && !media_id && process.env.GEMINI_API_KEY) {
                 try {
                     const aiPrompt = `You are the friendly automated receptionist for Akhanet Computer Business Centre. You are headquartered in Benin City, but proudly provide services to the entire Nigeria and to Nigerians in the diaspora. 
@@ -90,9 +85,7 @@ app.post('/webhook', async (req, res) => {
                         messaging_product: "whatsapp", to: from, type: "text", text: { body: aiReplyText }
                     }, { headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}`, 'Content-Type': 'application/json' } });
 
-                    await supabase.from('messages').insert([{ 
-                        sender_phone: from, message_body: aiReplyText, direction: 'outgoing', staff_username: '✨ Gemini_AI' 
-                    }]);
+                    await supabase.from('messages').insert([{ sender_phone: from, message_body: aiReplyText, direction: 'outgoing', staff_username: '✨ Gemini_AI' }]);
                 } catch (error) { console.error("AI Error:", error); }
             }
         }
@@ -100,9 +93,38 @@ app.post('/webhook', async (req, res) => {
     } else { res.sendStatus(404); }
 });
 
+// NEW: SECURITY WATCHDOG INTERCEPTOR
 app.post('/send-reply', upload.single('file'), async (req, res) => {
     const { to, message, staff_username } = req.body;
     const file = req.file;
+
+    // --- AI WATCHDOG CHECK ---
+    if (message && process.env.GEMINI_API_KEY) {
+        try {
+            const watchdogPrompt = `You are a strict corporate security system for Akhanet. Does the following message contain a personal phone number, an email address, a social media handle (like IG/Twitter), or any attempt to ask the customer to message them privately off this platform? 
+            Message to check: "${message}". 
+            Reply ONLY with the word "YES" if it contains forbidden contact info or poaching attempts, or "NO" if it is safe.`;
+
+            const aiCheck = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+                contents: [{ parts: [{ text: watchdogPrompt }] }]
+            });
+
+            const verdict = aiCheck.data.candidates[0].content.parts[0].text.trim().toUpperCase();
+
+            if (verdict.includes('YES')) {
+                // Log the violation in the chat for the Admin to see
+                await supabase.from('messages').insert([{
+                    sender_phone: to,
+                    message_body: `🚨 SECURITY ALERT: Agent [${staff_username}] attempted to send restricted contact info. Message blocked. Original text: "${message}"`,
+                    direction: 'outgoing',
+                    staff_username: '🤖 Watchdog'
+                }]);
+                return res.status(403).json({ success: false, error: 'SECURITY_BLOCK' });
+            }
+        } catch (e) { console.error("Watchdog bypass due to error.", e); }
+    }
+    // -------------------------
+
     try {
         let mediaId = null, mediaType = null, payload = { messaging_product: "whatsapp", to: to };
         if (file) {
