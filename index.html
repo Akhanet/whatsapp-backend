@@ -18,7 +18,6 @@
 
         #dashboardScreen { display: none; width: 100%; height: 100%; flex-direction: column; }
         
-        /* LIVE ADMIN ALERT BANNER */
         #adminAlertBanner { display: none; background-color: #d32f2f; color: white; padding: 12px 20px; font-weight: bold; align-items: center; justify-content: space-between; z-index: 50; }
         .dismiss-btn { background: white; color: #d32f2f; border: none; padding: 4px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; }
 
@@ -63,6 +62,7 @@
         .msg { padding: 10px 14px; border-radius: 8px; max-width: 75%; line-height: 1.4; font-size: 0.95rem; }
         .msg.incoming { background: white; align-self: flex-start; border-top-left-radius: 0; }
         .msg.outgoing { background: var(--light-bg); align-self: flex-end; border-top-right-radius: 0; }
+        .msg img { max-width: 100%; max-height: 350px; object-fit: contain; display: block; border-radius: 6px; margin-top: 5px; }
         
         .input-area { padding: 15px 20px; background: #f0f2f5; display: flex; gap: 10px; align-items: center; }
         .input-area input[type="text"] { flex: 1; padding: 14px; border: none; border-radius: 24px; outline: none; font-size: 1rem; }
@@ -119,6 +119,7 @@
                     <div class="admin-tabs">
                         <button id="tabPayroll" class="tab-btn active" onclick="loadPayroll()">📊 Payroll</button>
                         <button id="tabArchive" class="tab-btn" onclick="loadArchive()">📁 Chat Archive</button>
+                        <button id="tabSecurity" class="tab-btn" onclick="loadSecurityLog()">🚨 Security Log</button>
                     </div>
                     <div id="adminContent"></div>
                 </div>
@@ -133,7 +134,7 @@
                 <div class="messages" id="chatBox"></div>
                 
                 <div class="input-area" id="inputArea" style="display: none;">
-                    <input type="file" id="fileInput" style="display: none;">
+                    <input type="file" id="fileInput" style="display: none;" onchange="updateFileInputUI()">
                     <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎 Attach</button>
                     <input type="text" id="msgInput" placeholder="Type a message...">
                     <button class="send-btn" onclick="sendMessage()">Send</button>
@@ -195,7 +196,6 @@
 
         function logout() { localStorage.removeItem('akhanet_user'); localStorage.removeItem('akhanet_role'); location.reload(); }
 
-        // --- ADMIN LIVE ALERTS CHECKER ---
         async function checkSecurityAlerts() {
             if (currentRole !== 'admin') return;
             try {
@@ -218,25 +218,58 @@
             document.getElementById('adminAlertBanner').style.display = 'none';
             currentAlertId = null;
         }
-        // ---------------------------------
 
         function openAdminPanel() { document.getElementById('adminPanel').style.display = 'block'; loadPayroll(); }
         function closeAdminPanel() { document.getElementById('adminPanel').style.display = 'none'; }
+        
+        function resetAdminTabs() {
+            document.getElementById('tabPayroll').classList.remove('active');
+            document.getElementById('tabArchive').classList.remove('active');
+            document.getElementById('tabSecurity').classList.remove('active');
+        }
 
         async function loadPayroll() {
-            document.getElementById('tabPayroll').classList.add('active'); document.getElementById('tabArchive').classList.remove('active');
+            resetAdminTabs(); document.getElementById('tabPayroll').classList.add('active');
             const res = await fetch('/api/admin/staff'); const staffStats = await res.json();
             let html = `<table class="payroll-table"><thead><tr><th>Username</th><th>Role</th><th>Deals Closed</th></tr></thead><tbody>`;
             staffStats.forEach(staff => { html += `<tr><td>${staff.username}</td><td>${staff.role}</td><td style="font-weight: bold; color: #1E7C98;">${staff.deals_closed}</td></tr>`; });
             document.getElementById('adminContent').innerHTML = html + `</tbody></table>`;
         }
+
         async function loadArchive() {
-            document.getElementById('tabArchive').classList.add('active'); document.getElementById('tabPayroll').classList.remove('active');
+            resetAdminTabs(); document.getElementById('tabArchive').classList.add('active');
             const res = await fetch('/api/admin/archive'); const closedChats = await res.json();
             let html = `<div class="archive-list">`;
             closedChats.forEach(cust => { html += `<div class="archive-item" onclick="openArchivedChat('${cust.phone_number}', '${cust.assigned_to}')"><div><strong>${cust.phone_number}</strong></div><span class="status-badge">${cust.assigned_to}</span></div>`; });
             document.getElementById('adminContent').innerHTML = html + `</div>`;
         }
+
+        // NEW: Security Log Viewer
+        async function loadSecurityLog() {
+            resetAdminTabs(); document.getElementById('tabSecurity').classList.add('active');
+            const res = await fetch('/api/admin/alerts/all'); 
+            const logs = await res.json();
+            
+            let html = `<div class="archive-list">`;
+            if (logs.length === 0) html += `<p>No security breaches recorded.</p>`;
+            
+            logs.forEach(log => {
+                const date = new Date(log.created_at).toLocaleString();
+                const badgeColor = log.culprit_type === 'Staff' ? '#d32f2f' : '#FF9800';
+                html += `
+                    <div class="archive-item" style="border-left: 4px solid ${badgeColor}; flex-direction: column; align-items: flex-start; gap: 5px; cursor: default;">
+                        <div style="display: flex; justify-content: space-between; width: 100%;">
+                            <strong style="color: ${badgeColor};">${log.culprit_type} Breach: ${log.culprit_name}</strong>
+                            <span class="status-badge" style="background: ${log.status === 'unread' ? '#ffebee' : '#eee'}; color: #333;">${log.status.toUpperCase()}</span>
+                        </div>
+                        <div style="font-size: 0.95rem; background: white; padding: 10px; border-radius: 4px; border: 1px solid #ddd; width: 100%;">"${log.attempted_message}"</div>
+                        <span style="font-size: 0.8rem; color: #888;">${date}</span>
+                    </div>
+                `;
+            });
+            document.getElementById('adminContent').innerHTML = html + `</div>`;
+        }
+
         function openArchivedChat(phone, owner) { closeAdminPanel(); selectCustomer(phone, phone, 'closed', owner); }
 
         async function loadLobby() {
@@ -305,8 +338,14 @@
                 messages.forEach(msg => {
                     const div = document.createElement('div'); div.className = 'msg ' + msg.direction;
                     let content = msg.message_body || '';
-                    if (msg.media_type === 'image') content = `<img src="/api/media/${msg.media_id}"> <br> ${content}`;
-                    let senderInfo = msg.direction === 'outgoing' ? `<div style="font-size: 0.7rem; color: #888; text-align: right;">Sent by: ${msg.staff_username || 'System'}</div>` : '';
+                    // SECURE MEDIA RENDERER
+                    if (msg.media_type === 'image') {
+                        content = `<img src="/api/media/${msg.media_id}"> <br> ${content}`;
+                    } else if (msg.media_type === 'document') {
+                        content = `<div style="background: rgba(0,0,0,0.05); padding: 10px; border-radius: 6px; margin-bottom: 5px;">📄 <a href="/api/media/${msg.media_id}" target="_blank" style="color: #1E7C98; text-decoration: none; font-weight: bold;">Download Attached Document</a></div> ${content}`;
+                    }
+                    
+                    let senderInfo = msg.direction === 'outgoing' ? `<div style="font-size: 0.7rem; color: #888; text-align: right; margin-top: 5px;">Sent by: ${msg.staff_username || 'System'}</div>` : '';
                     div.innerHTML = `${content} ${senderInfo}`; box.appendChild(div);
                 });
                 box.scrollTop = box.scrollHeight;
@@ -318,6 +357,17 @@
             } catch (error) {}
         }
 
+        // NEW: Media UI File Preview Update
+        function updateFileInputUI() {
+            const file = document.getElementById('fileInput').files[0];
+            const input = document.getElementById('msgInput');
+            if (file) {
+                input.placeholder = `📎 ${file.name} selected. Type a caption...`;
+            } else {
+                input.placeholder = "Type a message...";
+            }
+        }
+
         async function sendMessage() {
             const text = document.getElementById('msgInput').value.trim(); const fileInput = document.getElementById('fileInput'); const file = fileInput.files[0];
             if(!activePhone) return; if(!text && !file) return;
@@ -327,10 +377,11 @@
             formData.append('to', activePhone); formData.append('message', text); formData.append('staff_username', currentStaff);
             if (file) formData.append('file', file);
 
-            // Send message. UI assumes success instantly to maintain the Honeypot illusion.
             await fetch('/send-reply', { method: 'POST', body: formData });
             
-            document.getElementById('msgInput').value = ''; fileInput.value = '';
+            document.getElementById('msgInput').value = ''; 
+            fileInput.value = '';
+            updateFileInputUI(); // Reset visual placeholder
             loadMessages();
         }
 
