@@ -41,7 +41,6 @@ app.get('/webhook', (req, res) => {
     } else { res.sendStatus(403); }
 });
 
-// WEBHOOK: INCOMING MESSAGES (Customer Check)
 app.post('/webhook', async (req, res) => {
     const body = req.body;
     if (body.object === 'whatsapp_business_account') {
@@ -54,7 +53,6 @@ app.post('/webhook', async (req, res) => {
             else if (msgData.type === 'image') { media_id = msgData.image.id; media_type = 'image'; } 
             else if (msgData.type === 'document') { media_id = msgData.document.id; media_type = 'document'; msg_body = msgData.document.filename || 'Document'; }
 
-            // --- CUSTOMER HONEYPOT CHECK ---
             let isCustomerPoaching = false;
             if (msg_body && process.env.GEMINI_API_KEY) {
                 try {
@@ -65,19 +63,13 @@ app.post('/webhook', async (req, res) => {
             }
 
             if (isCustomerPoaching) {
-                // 1. Alert the Admin secretly
                 await supabase.from('security_alerts').insert([{ culprit_type: 'Customer', culprit_name: from, attempted_message: msg_body }]);
-                
-                // 2. Reply to customer as the "Business" pretending nothing is wrong
                 const fakeReply = "Thanks! However, for security and record tracking, Akhanet policy requires us to keep all business communications on this official line. How can we assist you further here?";
                 await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`, {
                     messaging_product: "whatsapp", to: from, type: "text", text: { body: fakeReply }
                 }, { headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}`, 'Content-Type': 'application/json' } });
-                
-                // 3. Return 200 OK without saving to messages table (Staff never sees it)
                 return res.sendStatus(200);
             }
-            // -------------------------------
 
             await supabase.from('messages').insert([{ sender_phone: from, message_body: msg_body, direction: 'incoming', media_id, media_type }]);
 
@@ -116,12 +108,10 @@ app.post('/webhook', async (req, res) => {
     } else { res.sendStatus(404); }
 });
 
-// SEND-REPLY: OUTGOING MESSAGES (Staff Check)
 app.post('/send-reply', upload.single('file'), async (req, res) => {
     const { to, message, staff_username } = req.body;
     const file = req.file;
 
-    // --- STAFF HONEYPOT CHECK ---
     let isStaffPoaching = false;
     if (message && process.env.GEMINI_API_KEY) {
         try {
@@ -132,43 +122,56 @@ app.post('/send-reply', upload.single('file'), async (req, res) => {
     }
 
     if (isStaffPoaching) {
-        // 1. Save staff's message to dashboard so they think it sent
         await supabase.from('messages').insert([{ sender_phone: to, message_body: message, direction: 'outgoing', staff_username: staff_username }]);
-        
-        // 2. Alert the Admin secretly
         await supabase.from('security_alerts').insert([{ culprit_type: 'Staff', culprit_name: staff_username, attempted_message: message }]);
-        
-        // 3. Generate fake customer reply back to the staff to complete the illusion
         setTimeout(async () => {
             const fakeCustomerReply = "Okay, I have saved your number. I will message you there shortly.";
             await supabase.from('messages').insert([{ sender_phone: to, message_body: fakeCustomerReply, direction: 'incoming' }]);
-        }, 3000); // 3 second delay to look natural
-
-        // Return success instantly so UI doesn't freeze. Meta API is bypassed completely.
+        }, 3000); 
         return res.status(200).json({ success: true, honeypot: true });
     }
-    // ----------------------------
 
     try {
         let mediaId = null, mediaType = null, payload = { messaging_product: "whatsapp", to: to };
+        
         if (file) {
             const form = new FormData();
             form.append('messaging_product', 'whatsapp');
-            form.append('file', file.buffer, { filename: file.originalname, contentType: file.mimetype });
-            const uploadRes = await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/media`, form, { headers: { ...form.getHeaders(), Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}` } });
+            // Provide the exact file size (knownLength) so Meta accepts the data stream
+            form.append('file', file.buffer, { filename: file.originalname, contentType: file.mimetype, knownLength: file.size });
+            
+            const uploadRes = await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/media`, form, { 
+                headers: { ...form.getHeaders(), Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}` } 
+            });
+            
             mediaId = uploadRes.data.id;
             mediaType = file.mimetype.startsWith('image/') ? 'image' : 'document';
+            
             payload.type = mediaType;
             payload[mediaType] = { id: mediaId };
             if (message) payload[mediaType].caption = message;
+            
+            // Explicitly tell Meta the document filename
+            if (mediaType === 'document') {
+                payload[mediaType].filename = file.originalname;
+            }
         } else {
             payload.type = "text"; payload.text = { body: message };
         }
-        await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`, payload, { headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}`, 'Content-Type': 'application/json' } });
+
+        // Send to Meta
+        await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`, payload, { 
+            headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}`, 'Content-Type': 'application/json' } 
+        });
         
+        // Save to Database
         await supabase.from('messages').insert([{ sender_phone: to, message_body: message || file.originalname, direction: 'outgoing', media_id: mediaId, media_type: mediaType, staff_username: staff_username }]);
+        
         res.status(200).json({ success: true });
-    } catch (error) { res.status(500).json({ error: 'Failed' }); }
+    } catch (error) { 
+        console.error("Meta API Error:", error.response ? error.response.data : error.message);
+        res.status(500).json({ error: 'Failed' }); 
+    }
 });
 
 app.get('/api/customers', async (req, res) => {
@@ -198,19 +201,20 @@ app.get('/api/admin/archive', async (req, res) => {
     res.json(data || []);
 });
 
-// NEW: Admin Security Fetch
 app.get('/api/admin/alerts', async (req, res) => {
     const { data } = await supabase.from('security_alerts').select('*').eq('status', 'unread').order('created_at', { ascending: false });
     res.json(data || []);
 });
+
 app.post('/api/admin/alerts/clear', async (req, res) => {
     await supabase.from('security_alerts').update({ status: 'read' }).eq('id', req.body.id);
     res.json({ success: true });
 });
-// NEW: Fetch ALL security alerts for the Admin Log tab
+
 app.get('/api/admin/alerts/all', async (req, res) => {
     const { data } = await supabase.from('security_alerts').select('*').order('created_at', { ascending: false });
     res.json(data || []);
 });
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
