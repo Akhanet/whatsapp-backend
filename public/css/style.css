@@ -1,0 +1,76 @@
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+body { background-color: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
+:root { --primary: #1E7C98; --primary-hover: #165c71; --light-bg: #e6f3f7; }
+
+#loginScreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #f0f2f5; display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+.login-box h2 { color: var(--primary); margin-bottom: 25px; }
+.login-box input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
+.login-box button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+.error-msg { color: #d32f2f; margin-bottom: 15px; font-size: 0.9rem; display: none; }
+
+#dashboardScreen { display: none; width: 100%; height: 100%; flex-direction: column; }
+
+#adminAlertBanner { display: none; background-color: #d32f2f; color: white; padding: 12px 20px; font-weight: bold; align-items: center; justify-content: space-between; z-index: 50; }
+.dismiss-btn { background: white; color: #d32f2f; border: none; padding: 4px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+
+.workspace-area { display: flex; flex: 1; overflow: hidden; }
+.sidebar { width: 320px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
+.header { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+.user-info { font-size: 0.9rem; font-weight: 500; }
+
+.admin-btn { background: #FFC107; color: #333; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; margin-top: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
+.logout-btn { background: transparent; border: 1px solid white; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+
+.customer-list { flex: 1; overflow-y: auto; }
+.customer-item { padding: 15px 20px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.customer-item:hover { background: #f9f9f9; }
+.customer-item.active { background: var(--light-bg); border-left: 4px solid var(--primary); }
+.status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+.status-dot.open { background-color: #4CAF50; } 
+.status-dot.assigned { background-color: #FFC107; } 
+.status-badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 12px; background: #eee; color: #555; }
+
+.main-content { flex: 1; display: flex; flex-direction: column; background: #e5ddd5; position: relative; }
+
+#adminPanel { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 20; padding: 40px; overflow-y: auto; }
+.admin-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+.tab-btn { padding: 10px 20px; border: none; background: #eee; cursor: pointer; border-radius: 4px; font-weight: bold; color: #555; }
+.tab-btn.active { background: var(--primary); color: white; }
+
+.payroll-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.payroll-table th, .payroll-table td { padding: 15px; text-align: left; border-bottom: 1px solid #ddd; }
+.payroll-table th { background-color: var(--primary); color: white; }
+
+.archive-list { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+.archive-item { background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+
+.chat-header { background: #f0f2f5; padding: 15px 20px; border-bottom: 1px solid #ddd; display: flex; align-items: center; justify-content: space-between;}
+.chat-title { font-weight: bold; font-size: 1.1rem; color: #333; display: flex; align-items: center; }
+.edit-name-btn { background: none; border: none; cursor: pointer; font-size: 1rem; margin-left: 10px; opacity: 0.6; transition: 0.2s; }
+.edit-name-btn:hover { opacity: 1; transform: scale(1.1); }
+.action-btn { padding: 8px 16px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; }
+.claim-btn { background: #4CAF50; }
+.close-btn { background: #d32f2f; }
+
+.messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.msg { padding: 10px 14px; border-radius: 8px; max-width: 75%; line-height: 1.4; font-size: 0.95rem; }
+.msg.incoming { background: white; align-self: flex-start; border-top-left-radius: 0; }
+.msg.outgoing { background: var(--light-bg); align-self: flex-end; border-top-right-radius: 0; }
+.msg img { max-width: 100%; max-height: 350px; object-fit: contain; display: block; border-radius: 6px; margin-top: 5px; }
+
+.input-area { padding: 15px 20px; background: #f0f2f5; display: flex; gap: 10px; align-items: center; }
+.input-area input[type="text"] { flex: 1; padding: 14px; border: none; border-radius: 24px; outline: none; font-size: 1rem; }
+.send-btn { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 24px; cursor: pointer; font-weight: bold; }
+.attach-btn { background: #fff; color: #555; border: none; padding: 12px; border-radius: 24px; cursor: pointer;}
+.quick-reply-select { padding: 12px; border-radius: 24px; border: none; outline: none; background: white; cursor: pointer; max-width: 140px; font-size: 0.9rem; color: #555;}
+
+#lockOverlay { display: flex; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 10; align-items: center; justify-content: center; font-size: 1.2rem; color: #555; font-weight: bold; }
+
+@media (max-width: 768px) {
+    .workspace-area { flex-direction: column; }
+    .sidebar { width: 100%; height: 40%; }
+    .main-content { height: 60%; }
+    #adminPanel { padding: 20px; }
+    .quick-reply-select { max-width: 40px; }
+}
