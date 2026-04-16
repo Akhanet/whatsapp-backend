@@ -241,6 +241,40 @@ app.get('/api/admin/alerts/all', async (req, res) => {
     const { data } = await supabase.from('security_alerts').select('*').order('created_at', { ascending: false });
     res.json(data || []);
 });
+// NEW: The 24-Hour Override (Template Message Sender)
+app.post('/api/send-template', async (req, res) => {
+    const { to, staff_username, template_name } = req.body;
 
+    try {
+        const payload = {
+            messaging_product: "whatsapp",
+            to: to,
+            type: "template",
+            template: {
+                name: template_name, // E.g., "job_update"
+                language: { code: "en" } // Assuming the template is in English
+            }
+        };
+
+        // Fire the template to Meta
+        await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`, payload, { 
+            headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}`, 'Content-Type': 'application/json' } 
+        });
+        
+        // Log it in the database so you have a record
+        const logMessage = `🔔 [OFFICIAL ALERT SENT: ${template_name}]`;
+        await supabase.from('messages').insert([{ 
+            sender_phone: to, 
+            message_body: logMessage, 
+            direction: 'outgoing', 
+            staff_username: staff_username 
+        }]);
+        
+        res.status(200).json({ success: true });
+    } catch (error) { 
+        console.error("Template API Error:", error.response ? error.response.data : error.message);
+        res.status(500).json({ error: 'Failed to send template' }); 
+    }
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
