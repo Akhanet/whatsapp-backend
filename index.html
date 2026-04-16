@@ -70,6 +70,7 @@
         .input-area input[type="text"] { flex: 1; padding: 14px; border: none; border-radius: 24px; outline: none; font-size: 1rem; }
         .send-btn { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 24px; cursor: pointer; font-weight: bold; }
         .attach-btn { background: #fff; color: #555; border: none; padding: 12px; border-radius: 24px; cursor: pointer;}
+        .quick-reply-select { padding: 12px; border-radius: 24px; border: none; outline: none; background: white; cursor: pointer; max-width: 140px; font-size: 0.9rem; color: #555;}
         
         #lockOverlay { display: flex; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 10; align-items: center; justify-content: center; font-size: 1.2rem; color: #555; font-weight: bold; }
 
@@ -78,6 +79,7 @@
             .sidebar { width: 100%; height: 40%; }
             .main-content { height: 60%; }
             #adminPanel { padding: 20px; }
+            .quick-reply-select { max-width: 40px; } /* Shrinks to just the lightning bolt icon on phones */
         }
     </style>
 </head>
@@ -140,7 +142,17 @@
                 
                 <div class="input-area" id="inputArea" style="display: none;">
                     <input type="file" id="fileInput" style="display: none;" onchange="updateFileInputUI()">
-                    <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎 Attach</button>
+                    <button class="attach-btn" onclick="document.getElementById('fileInput').click()" title="Attach File">📎</button>
+                    
+                    <select id="quickReplies" class="quick-reply-select" onchange="insertQuickReply()">
+                        <option value="">⚡ Replies</option>
+                        <option value="To process your CAC Registration, we require:&#10;1. Two proposed business names.&#10;2. Your full name, address, and email.&#10;3. A clear picture of your valid ID.&#10;4. A passport photograph.&#10;&#10;Let me know when you have these ready!">CAC Requirements</option>
+                        <option value="NIN Reprinting costs ₦1,500. Please provide your NIN number or the phone number you used during registration.">NIN Pricing</option>
+                        <option value="To check your academic results, please provide:&#10;1. Your Examination Number&#10;2. The Exam Year&#10;3. The Pin/Serial Number of your scratch card.">Result Checking</option>
+                        <option value="Please make your payment to our official account:&#10;&#10;Bank: Zenith Bank&#10;Acct Name: Akhanet Computer Business Centre&#10;Acct Number: [INSERT NUMBER HERE]&#10;&#10;Kindly send a screenshot of the receipt once done!">Bank Details</option>
+                        <option value="Your job is ready for pickup or download! Let us know if you need any other assistance.">Job Completed</option>
+                    </select>
+
                     <input type="text" id="msgInput" placeholder="Type a message...">
                     <button class="send-btn" onclick="sendMessage()">Send</button>
                 </div>
@@ -279,7 +291,6 @@
 
         function openArchivedChat(phone, owner, custName) { 
             closeAdminPanel(); 
-            // Default to name if exists, else phone
             const finalDisplay = custName ? custName : phone;
             selectCustomer(phone, finalDisplay, 'closed', owner); 
         }
@@ -297,12 +308,10 @@
                     if(cust.status === 'closed') return; 
                     if(cust.status === 'open') currentOpenCount++;
 
-                    // ADDRESS BOOK LOGIC
                     let displayPhone = cust.phone_number;
                     if (currentRole !== 'admin' && cust.phone_number.length > 4) {
                         displayPhone = 'Client-****' + cust.phone_number.slice(-4);
                     }
-                    // If a name is saved, prioritize the name over the scrambled number
                     let finalDisplayName = cust.customer_name ? cust.customer_name : displayPhone;
 
                     const div = document.createElement('div');
@@ -327,7 +336,6 @@
             updateChatControls(); loadMessages(); loadLobby(); 
         }
 
-        // NEW: Edit Name Action
         async function editCustomerName() {
             if(!activePhone) return;
             const currentName = document.getElementById('activeChatTitle').innerText;
@@ -339,8 +347,6 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ phone: activePhone, name: newName.trim() })
                 });
-                
-                // Instantly update the UI
                 document.getElementById('activeChatTitle').innerText = newName.trim();
                 loadLobby();
             }
@@ -389,6 +395,17 @@
                 }
                 previousMsgCount = messages.length;
             } catch (error) {}
+        }
+
+        // NEW: Inject Quick Reply text into the input box
+        function insertQuickReply() {
+            const select = document.getElementById('quickReplies');
+            const input = document.getElementById('msgInput');
+            if (select.value) {
+                input.value = select.value;
+                select.value = ''; // Reset dropdown after selecting
+                input.focus(); // Keep the user's cursor active
+            }
         }
 
         function updateFileInputUI() {
