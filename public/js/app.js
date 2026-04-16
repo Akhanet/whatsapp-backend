@@ -204,13 +204,60 @@ async function editCustomerName() {
 }
 
 function updateChatControls() {
-    const controls = document.getElementById('chatControls'); const inputArea = document.getElementById('inputArea');
-    if (activeCustomerStatus === 'closed') { controls.innerHTML = `<span style="color: #666; font-size: 0.9rem; background: #eee; padding: 4px 8px; border-radius: 4px;">📁 Archived</span>`; inputArea.style.display = 'none'; } 
-    else if (activeCustomerStatus === 'open') { controls.innerHTML = `<button class="action-btn claim-btn" onclick="updateCustomerStatus('assigned', '${currentStaff}')">✋ Attend</button>`; inputArea.style.display = 'none'; } 
-    else if (activeCustomerStatus === 'assigned' && activeCustomerOwner === currentStaff) { controls.innerHTML = `<button class="action-btn close-btn" onclick="updateCustomerStatus('closed', '${currentStaff}')">✅ Complete</button>`; inputArea.style.display = 'flex'; } 
+    const controls = document.getElementById('chatControls'); 
+    const inputArea = document.getElementById('inputArea');
+    
+    // The Template Override Button (Visible whenever we own the chat)
+    const overrideBtnHTML = `<button class="action-btn" style="background: #FF9800; color: white;" onclick="sendTemplateOverride()" title="Send 24h Template Alert">🔔 Alert</button>`;
+
+    if (activeCustomerStatus === 'closed') { 
+        controls.innerHTML = `<span style="color: #666; font-size: 0.9rem; background: #eee; padding: 4px 8px; border-radius: 4px;">📁 Archived</span>`; 
+        inputArea.style.display = 'none'; 
+    } 
+    else if (activeCustomerStatus === 'open') { 
+        controls.innerHTML = `<button class="action-btn claim-btn" onclick="updateCustomerStatus('assigned', '${currentStaff}')">✋ Attend</button>`; 
+        inputArea.style.display = 'none'; 
+    } 
+    else if (activeCustomerStatus === 'assigned' && activeCustomerOwner === currentStaff) { 
+        controls.innerHTML = `${overrideBtnHTML} <button class="action-btn close-btn" onclick="updateCustomerStatus('closed', '${currentStaff}')">✅ Complete</button>`; 
+        inputArea.style.display = 'flex'; 
+    } 
     else if (activeCustomerStatus === 'assigned' && activeCustomerOwner !== currentStaff) {
-        if (currentRole === 'admin') { controls.innerHTML = `<span style="color: #d32f2f; font-weight: bold; background: white; padding: 4px 8px; border-radius: 4px;">👀 Spy Mode</span>`; inputArea.style.display = 'flex'; } 
-        else { controls.innerHTML = `<span style="color: #666; font-size: 0.9rem;">🔒 Handled by ${activeCustomerOwner}</span>`; inputArea.style.display = 'none'; }
+        if (currentRole === 'admin') { 
+            controls.innerHTML = `<span style="color: #d32f2f; font-weight: bold; background: white; padding: 4px 8px; border-radius: 4px;">👀 Spy Mode</span>`; 
+            inputArea.style.display = 'flex'; 
+        } 
+        else { 
+            controls.innerHTML = `<span style="color: #666; font-size: 0.9rem;">🔒 Handled by ${activeCustomerOwner}</span>`; 
+            inputArea.style.display = 'none'; 
+        }
+    }
+}
+
+// NEW: The function that fires the template
+async function sendTemplateOverride() {
+    if(!activePhone) return;
+    
+    // We ask the staff which template they want to send. 
+    // "hello_world" is a default template Meta gives every business to test with.
+    const templateName = prompt("Enter the official Meta Template Name to send (e.g., hello_world):", "hello_world");
+    
+    if(templateName && templateName.trim() !== "") {
+        try {
+            await fetch('/api/send-template', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ 
+                    to: activePhone, 
+                    staff_username: currentStaff,
+                    template_name: templateName.trim()
+                })
+            });
+            alert("Official Alert Sent!");
+            loadMessages(); // Refresh chat to show the log
+        } catch (e) {
+            alert("Failed to send alert. Check server logs.");
+        }
     }
 }
 
