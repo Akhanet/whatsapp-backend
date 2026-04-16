@@ -53,7 +53,9 @@
         .archive-item { background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
 
         .chat-header { background: #f0f2f5; padding: 15px 20px; border-bottom: 1px solid #ddd; display: flex; align-items: center; justify-content: space-between;}
-        .chat-title { font-weight: bold; font-size: 1.1rem; color: #333; }
+        .chat-title { font-weight: bold; font-size: 1.1rem; color: #333; display: flex; align-items: center; }
+        .edit-name-btn { background: none; border: none; cursor: pointer; font-size: 1rem; margin-left: 10px; opacity: 0.6; transition: 0.2s; }
+        .edit-name-btn:hover { opacity: 1; transform: scale(1.1); }
         .action-btn { padding: 8px 16px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; }
         .claim-btn { background: #4CAF50; }
         .close-btn { background: #d32f2f; }
@@ -127,7 +129,10 @@
                 <div id="lockOverlay">Select a customer from the lobby.</div>
                 
                 <div class="chat-header" id="chatHeader" style="display: none;">
-                    <div class="chat-title" id="activeChatTitle">Chat</div>
+                    <div class="chat-title">
+                        <span id="activeChatTitle">Chat</span>
+                        <button class="edit-name-btn" onclick="editCustomerName()" title="Edit Contact Name">✏️</button>
+                    </div>
                     <div id="chatControls"></div>
                 </div>
                 
@@ -240,11 +245,13 @@
             resetAdminTabs(); document.getElementById('tabArchive').classList.add('active');
             const res = await fetch('/api/admin/archive'); const closedChats = await res.json();
             let html = `<div class="archive-list">`;
-            closedChats.forEach(cust => { html += `<div class="archive-item" onclick="openArchivedChat('${cust.phone_number}', '${cust.assigned_to}')"><div><strong>${cust.phone_number}</strong></div><span class="status-badge">${cust.assigned_to}</span></div>`; });
+            closedChats.forEach(cust => { 
+                const nameDisplay = cust.customer_name ? `${cust.customer_name} (${cust.phone_number})` : cust.phone_number;
+                html += `<div class="archive-item" onclick="openArchivedChat('${cust.phone_number}', '${cust.assigned_to}', '${cust.customer_name || ''}')"><div><strong>${nameDisplay}</strong></div><span class="status-badge">${cust.assigned_to}</span></div>`; 
+            });
             document.getElementById('adminContent').innerHTML = html + `</div>`;
         }
 
-        // NEW: Security Log Viewer
         async function loadSecurityLog() {
             resetAdminTabs(); document.getElementById('tabSecurity').classList.add('active');
             const res = await fetch('/api/admin/alerts/all'); 
@@ -270,7 +277,12 @@
             document.getElementById('adminContent').innerHTML = html + `</div>`;
         }
 
-        function openArchivedChat(phone, owner) { closeAdminPanel(); selectCustomer(phone, phone, 'closed', owner); }
+        function openArchivedChat(phone, owner, custName) { 
+            closeAdminPanel(); 
+            // Default to name if exists, else phone
+            const finalDisplay = custName ? custName : phone;
+            selectCustomer(phone, finalDisplay, 'closed', owner); 
+        }
 
         async function loadLobby() {
             if(!currentStaff) return;
@@ -285,16 +297,20 @@
                     if(cust.status === 'closed') return; 
                     if(cust.status === 'open') currentOpenCount++;
 
+                    // ADDRESS BOOK LOGIC
                     let displayPhone = cust.phone_number;
                     if (currentRole !== 'admin' && cust.phone_number.length > 4) {
                         displayPhone = 'Client-****' + cust.phone_number.slice(-4);
                     }
+                    // If a name is saved, prioritize the name over the scrambled number
+                    let finalDisplayName = cust.customer_name ? cust.customer_name : displayPhone;
 
                     const div = document.createElement('div');
                     div.className = `customer-item ${cust.phone_number === activePhone ? 'active' : ''}`;
                     let statusHtml = cust.status === 'open' ? `<span class="status-badge"><span class="status-dot open"></span>Waiting</span>` : `<span class="status-badge"><span class="status-dot assigned"></span>${cust.assigned_to === currentStaff ? 'My Chat' : cust.assigned_to}</span>`;
-                    div.innerHTML = `<div><strong>${displayPhone}</strong></div> ${statusHtml}`;
-                    div.onclick = () => selectCustomer(cust.phone_number, displayPhone, cust.status, cust.assigned_to);
+                    div.innerHTML = `<div><strong>${finalDisplayName}</strong></div> ${statusHtml}`;
+                    
+                    div.onclick = () => selectCustomer(cust.phone_number, finalDisplayName, cust.status, cust.assigned_to);
                     list.appendChild(div);
                 });
 
@@ -309,6 +325,25 @@
             document.getElementById('chatHeader').style.display = 'flex';
             document.getElementById('activeChatTitle').innerText = displayPhone;
             updateChatControls(); loadMessages(); loadLobby(); 
+        }
+
+        // NEW: Edit Name Action
+        async function editCustomerName() {
+            if(!activePhone) return;
+            const currentName = document.getElementById('activeChatTitle').innerText;
+            const newName = prompt("Enter customer's real name (e.g., John Doe - CAC):", currentName.includes("Client") ? "" : currentName);
+            
+            if(newName && newName.trim() !== "") {
+                await fetch('/api/customers/name', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ phone: activePhone, name: newName.trim() })
+                });
+                
+                // Instantly update the UI
+                document.getElementById('activeChatTitle').innerText = newName.trim();
+                loadLobby();
+            }
         }
 
         function updateChatControls() {
@@ -338,7 +373,6 @@
                 messages.forEach(msg => {
                     const div = document.createElement('div'); div.className = 'msg ' + msg.direction;
                     let content = msg.message_body || '';
-                    // SECURE MEDIA RENDERER
                     if (msg.media_type === 'image') {
                         content = `<img src="/api/media/${msg.media_id}"> <br> ${content}`;
                     } else if (msg.media_type === 'document') {
@@ -357,7 +391,6 @@
             } catch (error) {}
         }
 
-        // NEW: Media UI File Preview Update
         function updateFileInputUI() {
             const file = document.getElementById('fileInput').files[0];
             const input = document.getElementById('msgInput');
@@ -381,7 +414,7 @@
             
             document.getElementById('msgInput').value = ''; 
             fileInput.value = '';
-            updateFileInputUI(); // Reset visual placeholder
+            updateFileInputUI(); 
             loadMessages();
         }
 
