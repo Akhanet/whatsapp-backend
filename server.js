@@ -28,21 +28,17 @@ app.get('/api/messages/:phone', async (req, res) => {
     res.json(data || []);
 });
 
-// UPGRADE 1: THE FILENAME RESTORER
 app.get('/api/media/:mediaId', async (req, res) => {
     try {
         const metaRes = await axios.get(`https://graph.facebook.com/v18.0/${req.params.mediaId}`, { headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}` } });
         const mediaStream = await axios.get(metaRes.data.url, { responseType: 'stream', headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}` } });
         
-        // Look up the original file name from the database
         const { data } = await supabase.from('messages').select('message_body').eq('media_id', req.params.mediaId).single();
         let originalName = 'akhanet_document';
-        if (data && data.message_body) originalName = data.message_body; // We stored the original name here
+        if (data && data.message_body) originalName = data.message_body;
 
         res.setHeader('Content-Type', metaRes.data.mime_type);
-        // Force the browser to use the original file name
         res.setHeader('Content-Disposition', `attachment; filename="${originalName}"`);
-        
         mediaStream.data.pipe(res);
     } catch (e) { res.status(404).send('Media not found'); }
 });
@@ -124,10 +120,7 @@ app.post('/send-reply', upload.single('file'), async (req, res) => {
     const { to, message, staff_username } = req.body;
     const file = req.file;
 
-    // UPGRADE 2: FILE CONTENT READER
     let contentToCheck = message || "";
-    
-    // If the staff attached a text file, open it and read the contents into the Watchdog!
     if (file && (file.mimetype === 'text/plain' || file.mimetype === 'text/csv')) {
         const fileContent = file.buffer.toString('utf-8');
         contentToCheck += `\n[ATTACHED FILE CONTENT]: ${fileContent}`;
@@ -142,23 +135,11 @@ app.post('/send-reply', upload.single('file'), async (req, res) => {
         } catch (e) { }
     }
 
-    if (isStaffPoaching) {
-        // We log what they typed, plus mention there was a compromised file attached
-        const logMessage = file ? `[File Blocked: ${file.originalname}] ` + (message || "Hidden Poaching Attempt in File") : message;
-        
-        await supabase.from('messages').insert([{ sender_phone: to, message_body: logMessage, direction: 'outgoing', staff_username: staff_username }]);
-        await supabase.from('security_alerts').insert([{ culprit_type: 'Staff', culprit_name: staff_username, attempted_message: logMessage }]);
-        
-        setTimeout(async () => {
-            const fakeCustomerReply = "Okay, I have saved your number. I will message you there shortly.";
-            await supabase.from('messages').insert([{ sender_phone: to, message_body: fakeCustomerReply, direction: 'incoming' }]);
-        }, 3000); 
-        return res.status(200).json({ success: true, honeypot: true });
-    }
-
     try {
         let mediaId = null, mediaType = null, payload = { messaging_product: "whatsapp", to: to };
         
+        // We ALWAYS upload the file to Meta's secure vault to get a real media_id for the UI, 
+        // even if the staff is poaching, to complete the illusion.
         if (file) {
             const form = new FormData();
             form.append('messaging_product', 'whatsapp');
@@ -185,6 +166,34 @@ app.post('/send-reply', upload.single('file'), async (req, res) => {
             payload.type = "text"; payload.text = { body: message };
         }
 
+        // --- HONEYPOT BRANCH ---
+        if (isStaffPoaching) {
+            // 1. Alert the Admin with the full flagged text
+            const alertMsg = file ? `[File Attached: ${file.originalname}] ` + contentToCheck : message;
+            await supabase.from('security_alerts').insert([{ culprit_type: 'Staff', culprit_name: staff_username, attempted_message: alertMsg }]);
+            
+            // 2. Save perfectly normal-looking message to the dashboard for the staff to see
+            await supabase.from('messages').insert([{ 
+                sender_phone: to, 
+                message_body: message || file.originalname, 
+                direction: 'outgoing', 
+                media_id: mediaId, 
+                media_type: mediaType, 
+                staff_username: staff_username 
+            }]);
+            
+            // 3. Fake customer reply
+            setTimeout(async () => {
+                const fakeCustomerReply = "Okay, I have saved your number. I will message you there shortly.";
+                await supabase.from('messages').insert([{ sender_phone: to, message_body: fakeCustomerReply, direction: 'incoming' }]);
+            }, 3000); 
+            
+            // 4. Return success instantly WITHOUT sending the message to the customer
+            return res.status(200).json({ success: true, honeypot: true });
+        }
+        // ------------------------
+
+        // If NOT poaching, deliver the message to the customer normally
         await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`, payload, { 
             headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}`, 'Content-Type': 'application/json' } 
         });
