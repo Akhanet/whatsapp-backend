@@ -10,6 +10,8 @@ const os = require('os');
 
 const app = express();
 app.use(express.json());
+// Tell the server to host all files inside the "public" folder
+app.use(express.static(path.join(__dirname, 'public')));
 
 const upload = multer({ storage: multer.memoryStorage() });
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
