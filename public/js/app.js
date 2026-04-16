@@ -170,7 +170,21 @@ function selectCustomer(phone, displayPhone, status, owner) {
     document.getElementById('lockOverlay').style.display = 'none';
     document.getElementById('chatHeader').style.display = 'flex';
     document.getElementById('activeChatTitle').innerText = displayPhone;
+    
+    // NEW: Trigger the Mobile Slide Animation
+    document.body.classList.add('mobile-chat-active');
+    
     updateChatControls(); loadMessages(); loadLobby(); 
+}
+
+// NEW: Function to slide back to the Lobby on Mobile
+function closeMobileChat() {
+    document.body.classList.remove('mobile-chat-active');
+    activePhone = ''; 
+    document.getElementById('chatHeader').style.display = 'none';
+    document.getElementById('inputArea').style.display = 'none';
+    document.getElementById('lockOverlay').style.display = 'flex';
+    loadLobby();
 }
 
 async function editCustomerName() {
@@ -203,8 +217,15 @@ function updateChatControls() {
 async function updateCustomerStatus(newStatus, assignedTo) {
     await fetch('/api/customers/update', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ phone: activePhone, status: newStatus, assigned_to: assignedTo }) });
     activeCustomerStatus = newStatus; activeCustomerOwner = assignedTo;
-    if (newStatus === 'closed') { activePhone = ''; document.getElementById('lockOverlay').style.display = 'flex'; document.getElementById('chatHeader').style.display = 'none'; document.getElementById('inputArea').style.display = 'none'; document.getElementById('chatBox').innerHTML = ''; } 
-    else { updateChatControls(); }
+    
+    if (newStatus === 'closed') { 
+        // If closed on mobile, automatically slide back to the lobby
+        if (window.innerWidth <= 768) {
+            closeMobileChat();
+        } else {
+            activePhone = ''; document.getElementById('lockOverlay').style.display = 'flex'; document.getElementById('chatHeader').style.display = 'none'; document.getElementById('inputArea').style.display = 'none'; document.getElementById('chatBox').innerHTML = ''; 
+        }
+    } else { updateChatControls(); }
     loadLobby();
 }
 
