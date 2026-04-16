@@ -5,8 +5,8 @@ const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
 const multer = require('multer');
 const FormData = require('form-data');
-const fs = require('fs'); // NEW: Built-in tool to manage physical files
-const os = require('os'); // NEW: Built-in tool to find the server's temp folder
+const fs = require('fs');
+const os = require('os');
 
 const app = express();
 app.use(express.json());
@@ -28,11 +28,21 @@ app.get('/api/messages/:phone', async (req, res) => {
     res.json(data || []);
 });
 
+// UPGRADE 1: THE FILENAME RESTORER
 app.get('/api/media/:mediaId', async (req, res) => {
     try {
         const metaRes = await axios.get(`https://graph.facebook.com/v18.0/${req.params.mediaId}`, { headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}` } });
         const mediaStream = await axios.get(metaRes.data.url, { responseType: 'stream', headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}` } });
+        
+        // Look up the original file name from the database
+        const { data } = await supabase.from('messages').select('message_body').eq('media_id', req.params.mediaId).single();
+        let originalName = 'akhanet_document';
+        if (data && data.message_body) originalName = data.message_body; // We stored the original name here
+
         res.setHeader('Content-Type', metaRes.data.mime_type);
+        // Force the browser to use the original file name
+        res.setHeader('Content-Disposition', `attachment; filename="${originalName}"`);
+        
         mediaStream.data.pipe(res);
     } catch (e) { res.status(404).send('Media not found'); }
 });
@@ -114,18 +124,31 @@ app.post('/send-reply', upload.single('file'), async (req, res) => {
     const { to, message, staff_username } = req.body;
     const file = req.file;
 
+    // UPGRADE 2: FILE CONTENT READER
+    let contentToCheck = message || "";
+    
+    // If the staff attached a text file, open it and read the contents into the Watchdog!
+    if (file && (file.mimetype === 'text/plain' || file.mimetype === 'text/csv')) {
+        const fileContent = file.buffer.toString('utf-8');
+        contentToCheck += `\n[ATTACHED FILE CONTENT]: ${fileContent}`;
+    }
+
     let isStaffPoaching = false;
-    if (message && process.env.GEMINI_API_KEY) {
+    if (contentToCheck && process.env.GEMINI_API_KEY) {
         try {
-            const watchdogPrompt = `You are a strict corporate security system for Akhanet. Does the following message contain a personal phone number, an email address, a social media handle (like IG/Twitter), or any attempt to ask the customer to message them privately off this platform? Message: "${message}". Reply ONLY "YES" or "NO".`;
+            const watchdogPrompt = `You are a strict corporate security system for Akhanet. Does the following text or file content contain a personal phone number, an email address, a social media handle (like IG/Twitter), or any attempt to ask the customer to message them privately off this platform? Content: "${contentToCheck}". Reply ONLY "YES" or "NO".`;
             const aiCheck = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, { contents: [{ parts: [{ text: watchdogPrompt }] }] });
             if (aiCheck.data.candidates[0].content.parts[0].text.trim().toUpperCase().includes('YES')) isStaffPoaching = true;
         } catch (e) { }
     }
 
     if (isStaffPoaching) {
-        await supabase.from('messages').insert([{ sender_phone: to, message_body: message, direction: 'outgoing', staff_username: staff_username }]);
-        await supabase.from('security_alerts').insert([{ culprit_type: 'Staff', culprit_name: staff_username, attempted_message: message }]);
+        // We log what they typed, plus mention there was a compromised file attached
+        const logMessage = file ? `[File Blocked: ${file.originalname}] ` + (message || "Hidden Poaching Attempt in File") : message;
+        
+        await supabase.from('messages').insert([{ sender_phone: to, message_body: logMessage, direction: 'outgoing', staff_username: staff_username }]);
+        await supabase.from('security_alerts').insert([{ culprit_type: 'Staff', culprit_name: staff_username, attempted_message: logMessage }]);
+        
         setTimeout(async () => {
             const fakeCustomerReply = "Okay, I have saved your number. I will message you there shortly.";
             await supabase.from('messages').insert([{ sender_phone: to, message_body: fakeCustomerReply, direction: 'incoming' }]);
@@ -140,17 +163,16 @@ app.post('/send-reply', upload.single('file'), async (req, res) => {
             const form = new FormData();
             form.append('messaging_product', 'whatsapp');
             
-            // THE ULTIMATE FIX: Save physical file, upload it, then delete it.
             const tempFilePath = path.join(os.tmpdir(), file.originalname);
-            fs.writeFileSync(tempFilePath, file.buffer); // Save to disk
+            fs.writeFileSync(tempFilePath, file.buffer); 
             
-            form.append('file', fs.createReadStream(tempFilePath)); // Give Meta the physical file
+            form.append('file', fs.createReadStream(tempFilePath)); 
             
             const uploadRes = await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/media`, form, { 
                 headers: { ...form.getHeaders(), Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}` } 
             });
             
-            fs.unlinkSync(tempFilePath); // Delete from disk to stay clean
+            fs.unlinkSync(tempFilePath); 
             
             mediaId = uploadRes.data.id;
             mediaType = file.mimetype.startsWith('image/') ? 'image' : 'document';
