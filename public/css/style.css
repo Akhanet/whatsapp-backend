@@ -66,14 +66,13 @@ body { background-color: #f0f2f5; display: flex; height: 100vh; height: 100dvh; 
 .msg img { max-width: 100%; max-height: 300px; object-fit: contain; display: block; border-radius: 8px; margin-top: 5px; border: 1px solid rgba(0,0,0,0.05); }
 
 /* FIX 3: Lock input area height and add iPhone bottom swipe-bar safety padding */
-.input-area { padding: 15px 25px calc(15px + env(safe-area-inset-bottom)); background: white; display: flex; gap: 12px; align-items: center; border-top: 1px solid #ddd; flex-shrink: 0; }
-.input-area input[type="text"] { flex: 1; padding: 16px 20px; border: 1px solid #ddd; border-radius: 24px; outline: none; font-size: 1rem; transition: border-color 0.2s; background: #f0f2f5; }
+.input-area input[type="text"] { flex: 1; min-width: 0; padding: 16px 20px; border: 1px solid #ddd; border-radius: 24px; outline: none; font-size: 1rem; transition: border-color 0.2s; background: #f0f2f5; }
 .input-area input[type="text"]:focus { border-color: var(--primary); background: white; }
-.send-btn { background: var(--primary); color: white; border: none; padding: 14px 24px; border-radius: 24px; cursor: pointer; font-weight: bold; font-size: 1rem; box-shadow: 0 4px 10px rgba(30,124,152,0.3); transition: transform 0.1s; }
+.send-btn { flex-shrink: 0; background: var(--primary); color: white; border: none; padding: 14px 20px; border-radius: 24px; cursor: pointer; font-weight: bold; font-size: 1rem; box-shadow: 0 4px 10px rgba(30,124,152,0.3); transition: transform 0.1s; }
 .send-btn:active { transform: scale(0.95); }
-.attach-btn { background: #f0f2f5; color: #555; border: none; padding: 14px; border-radius: 50%; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+.attach-btn { flex-shrink: 0; background: #f0f2f5; color: #555; border: none; padding: 14px; border-radius: 50%; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
 .attach-btn:hover { background: #e4e6e9; }
-.quick-reply-select { padding: 14px; border-radius: 24px; border: 1px solid #ddd; outline: none; background: #f0f2f5; cursor: pointer; max-width: 150px; font-size: 0.95rem; color: #555; transition: border-color 0.2s; }
+.quick-reply-select { flex-shrink: 0; padding: 14px; border-radius: 24px; border: 1px solid #ddd; outline: none; background: #f0f2f5; cursor: pointer; max-width: 150px; font-size: 0.95rem; color: #555; transition: border-color 0.2s; }
 .quick-reply-select:focus { border-color: var(--primary); }
 
 /* ADMIN PANEL OVERLAY */
