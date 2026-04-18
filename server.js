@@ -97,26 +97,27 @@ app.post('/webhook', async (req, res) => {
 
             if (currentStatus === 'open' && msg_body && !media_id && process.env.GEMINI_API_KEY) {
                 try {
-                    const aiPrompt = `You are the friendly automated receptionist for Akhanet Computer Business Centre. You are headquartered in Benin City, but proudly provide services to the entire Nigeria and to Nigerians in the diaspora. 
-                    Your available services include CAC registration, NIN reprinting, academic result checking, web design, and printing.
-                    A customer just messaged: "${msg_body}".
-                    Reply naturally. Briefly answer their question if possible based on your services. 
-                    Always end by letting them know a human agent has been notified and will claim their chat shortly. Keep it under 3 sentences.`;
+                    const aiPrompt = `You are "Sarah", the highly professional and welcoming virtual assistant for Akhanet Computer Business Centre in Benin City, Nigeria.
+                    A customer just sent this message: "${msg_body}".
+                    
+                    Your rules:
+                    1. Acknowledge their message warmly and professionally.
+                    2. State clearly that you are the automated assistant and you have notified the human experts.
+                    3. Reassure them that a staff member will join the chat momentarily to assist them.
+                    4. Keep it to a maximum of 3 short, friendly sentences.
+                    5. Use ONLY WhatsApp text formatting (e.g., use *bold* instead of **bold**). Do not use markdown headers.`;
                     
                     const aiResponse = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, { contents: [{ parts: [{ text: aiPrompt }] }] });
-                    const aiReplyText = aiResponse.data.candidates[0].content.parts[0].text;
+                    
+                    // Clean up any rogue markdown the AI tries to sneak in
+                    let aiReplyText = aiResponse.data.candidates[0].content.parts[0].text;
+                    aiReplyText = aiReplyText.replace(/\*\*/g, '*'); 
 
                     await axios.post(`https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`, {
                         messaging_product: "whatsapp", to: from, type: "text", text: { body: aiReplyText }
                     }, { headers: { Authorization: `Bearer ${process.env.META_PERMANENT_TOKEN}`, 'Content-Type': 'application/json' } });
 
-                    await supabase.from('messages').insert([{ sender_phone: from, message_body: aiReplyText, direction: 'outgoing', staff_username: '✨ Gemini_AI' }]);
-                } catch (error) { console.error("AI Error:", error); }
-            }
-        }
-        res.sendStatus(200);
-    } else { res.sendStatus(404); }
-});
+                    await supabase.from('messages').insert([{ sender_phone: from, message_body: aiReplyText, direction: 'outgoing', staff_username: '✨ Sarah (AI)' }]);
 
 app.post('/send-reply', upload.single('file'), async (req, res) => {
     const { to, message, staff_username } = req.body;
@@ -275,6 +276,14 @@ app.post('/api/send-template', async (req, res) => {
         console.error("Template API Error:", error.response ? error.response.data : error.message);
         res.status(500).json({ error: 'Failed to send template' }); 
     }
+});
+// NEW: Admin Delete Chat Route
+app.delete('/api/admin/chat/:phone', async (req, res) => {
+    const { phone } = req.params;
+    // Delete all messages first, then delete the customer record
+    await supabase.from('messages').delete().eq('sender_phone', phone);
+    await supabase.from('customers').delete().eq('phone_number', phone);
+    res.json({ success: true });
 });
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
