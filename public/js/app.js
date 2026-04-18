@@ -229,6 +229,11 @@ function updateChatControls() {
             inputArea.style.display = 'none'; 
         }
     }
+    // NEW: Inject the Delete Button ONLY if the logged-in user is an admin
+    if (currentRole === 'admin') {
+        controls.innerHTML += `<button class="action-btn" style="background: #d32f2f; color: white; margin-left: 10px;" onclick="deleteActiveChat()" title="Permanently Delete Chat">🗑️ Delete</button>`;
+    }
+}
 }
 
 async function updateCustomerStatus(newStatus, assignedTo) {
