@@ -89,26 +89,40 @@ body { background-color: #f0f2f5; display: flex; height: 100vh; overflow: hidden
    MOBILE RESPONSIVENESS (THE SLIDING WINDOW)
    ========================================= */
 @media (max-width: 768px) {
-    /* Make the workspace absolute to allow sliding */
-    .workspace-area { display: block; position: relative; }
+    /* Create a side-by-side flex track */
+    .workspace-area { 
+        display: flex; 
+        flex-direction: row; 
+        width: 100vw; 
+        overflow: hidden; 
+        position: relative;
+    }
     
-    /* Sidebar takes up 100% width */
-    .sidebar { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+    /* Force Lobby to take up the whole screen */
+    .sidebar { 
+        min-width: 100vw; 
+        width: 100vw; 
+        transition: transform 0.3s ease; 
+    }
     
-    /* Main Content takes up 100% width, but sits off-screen to the right */
-    .main-content { width: 100%; height: 100%; position: absolute; top: 0; left: 0; transform: translateX(100%); border-left: none; }
+    /* Force Chat to take up the whole screen, sitting just off the right edge */
+    .main-content { 
+        min-width: 100vw; 
+        width: 100vw; 
+        transition: transform 0.3s ease; 
+        border-left: none; 
+    }
     
-    /* When a chat is active, slide the sidebar slightly left and the chat fully into view */
-    body.mobile-chat-active .sidebar { transform: translateX(-30%); opacity: 0.5; pointer-events: none; }
-    body.mobile-chat-active .main-content { transform: translateX(0); }
+    /* When a chat is active, slide both panels 100% to the left! */
+    body.mobile-chat-active .sidebar { transform: translateX(-100vw); }
+    body.mobile-chat-active .main-content { transform: translateX(-100vw); }
 
-    /* Show the Back button inside the chat header */
     .mobile-back-btn { display: inline-block; }
     
     /* Adjust paddings for thumbs */
     .chat-header { padding: 15px; }
     .input-area { padding: 12px 15px; gap: 8px; }
-    .quick-reply-select { max-width: 45px; color: transparent; padding: 14px 10px; } /* Hide text, just show icon dropdown on mobile */
+    .quick-reply-select { max-width: 45px; color: transparent; padding: 14px 10px; } 
     .messages { padding: 15px; }
     .msg { max-width: 85%; }
     
