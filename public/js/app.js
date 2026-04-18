@@ -171,13 +171,11 @@ function selectCustomer(phone, displayPhone, status, owner) {
     document.getElementById('chatHeader').style.display = 'flex';
     document.getElementById('activeChatTitle').innerText = displayPhone;
     
-    // NEW: Trigger the Mobile Slide Animation
     document.body.classList.add('mobile-chat-active');
     
     updateChatControls(); loadMessages(); loadLobby(); 
 }
 
-// NEW: Function to slide back to the Lobby on Mobile
 function closeMobileChat() {
     document.body.classList.remove('mobile-chat-active');
     activePhone = ''; 
@@ -207,7 +205,6 @@ function updateChatControls() {
     const controls = document.getElementById('chatControls'); 
     const inputArea = document.getElementById('inputArea');
     
-    // The Template Override Button (Visible whenever we own the chat)
     const overrideBtnHTML = `<button class="action-btn" style="background: #FF9800; color: white;" onclick="sendTemplateOverride()" title="Send 24h Template Alert">🔔 Alert</button>`;
 
     if (activeCustomerStatus === 'closed') { 
@@ -234,39 +231,11 @@ function updateChatControls() {
     }
 }
 
-// NEW: The function that fires the template
-async function sendTemplateOverride() {
-    if(!activePhone) return;
-    
-    // We ask the staff which template they want to send. 
-    // "hello_world" is a default template Meta gives every business to test with.
-    const templateName = prompt("Enter the official Meta Template Name to send (e.g., hello_world):", "hello_world");
-    
-    if(templateName && templateName.trim() !== "") {
-        try {
-            await fetch('/api/send-template', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ 
-                    to: activePhone, 
-                    staff_username: currentStaff,
-                    template_name: templateName.trim()
-                })
-            });
-            alert("Official Alert Sent!");
-            loadMessages(); // Refresh chat to show the log
-        } catch (e) {
-            alert("Failed to send alert. Check server logs.");
-        }
-    }
-}
-
 async function updateCustomerStatus(newStatus, assignedTo) {
     await fetch('/api/customers/update', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ phone: activePhone, status: newStatus, assigned_to: assignedTo }) });
     activeCustomerStatus = newStatus; activeCustomerOwner = assignedTo;
     
     if (newStatus === 'closed') { 
-        // If closed on mobile, automatically slide back to the lobby
         if (window.innerWidth <= 768) {
             closeMobileChat();
         } else {
@@ -276,11 +245,34 @@ async function updateCustomerStatus(newStatus, assignedTo) {
     loadLobby();
 }
 
+async function sendTemplateOverride() {
+    if(!activePhone) return;
+    const templateName = prompt("Enter the official Meta Template Name to send (e.g., hello_world):", "hello_world");
+    if(templateName && templateName.trim() !== "") {
+        try {
+            await fetch('/api/send-template', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ to: activePhone, staff_username: currentStaff, template_name: templateName.trim() })
+            });
+            alert("Official Alert Sent!");
+            loadMessages(); 
+        } catch (e) { alert("Failed to send alert. Check server logs."); }
+    }
+}
+
 async function loadMessages() {
     if(!activePhone) return;
     try {
-        const res = await fetch(`/api/messages/${activePhone}`); const messages = await res.json();
-        const box = document.getElementById('chatBox'); box.innerHTML = '';
+        const res = await fetch(`/api/messages/${activePhone}`); 
+        const messages = await res.json();
+        
+        // THE FIX: Only redraw and snap to bottom IF the message count changed!
+        if (messages.length === previousMsgCount) return;
+
+        const box = document.getElementById('chatBox'); 
+        box.innerHTML = '';
+        
         messages.forEach(msg => {
             const div = document.createElement('div'); div.className = 'msg ' + msg.direction;
             let content = msg.message_body || '';
@@ -293,7 +285,9 @@ async function loadMessages() {
             let senderInfo = msg.direction === 'outgoing' ? `<div style="font-size: 0.7rem; color: #888; text-align: right; margin-top: 5px;">Sent by: ${msg.staff_username || 'System'}</div>` : '';
             div.innerHTML = `${content} ${senderInfo}`; box.appendChild(div);
         });
+        
         box.scrollTop = box.scrollHeight;
+        
         if (messages.length > previousMsgCount && previousMsgCount !== 0) {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg.direction === 'incoming') { playBeep(); sendPushNotification("New Message", lastMsg.message_body || "New file received"); }
