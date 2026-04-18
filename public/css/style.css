@@ -1,9 +1,11 @@
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-body { background-color: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
+
+/* FIX 1: Use 100dvh to prevent mobile browsers from hiding the bottom of the screen */
+body { background-color: #f0f2f5; display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
 :root { --primary: #1E7C98; --primary-hover: #165c71; --light-bg: #e6f3f7; --chat-bg: #efeae2; --text-main: #333; }
 
 /* LOGIN SCREEN */
-#loginScreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #f0f2f5; display: flex; align-items: center; justify-content: center; z-index: 1000; }
+#loginScreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: #f0f2f5; display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); width: 90%; max-width: 400px; text-align: center; }
 .login-box h2 { color: var(--primary); margin-bottom: 25px; font-size: 1.8rem; }
 .login-box input { width: 100%; padding: 14px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s; }
@@ -13,24 +15,24 @@ body { background-color: #f0f2f5; display: flex; height: 100vh; overflow: hidden
 .error-msg { color: #d32f2f; margin-bottom: 15px; font-size: 0.9rem; display: none; background: #ffebee; padding: 10px; border-radius: 6px; }
 
 /* ALERTS */
-#adminAlertBanner { display: none; background-color: #d32f2f; color: white; padding: 12px 20px; font-weight: bold; align-items: center; justify-content: space-between; z-index: 50; box-shadow: 0 2px 10px rgba(211,47,47,0.4); }
+#adminAlertBanner { display: none; background-color: #d32f2f; color: white; padding: 12px 20px; font-weight: bold; align-items: center; justify-content: space-between; z-index: 50; box-shadow: 0 2px 10px rgba(211,47,47,0.4); flex-shrink: 0; }
 .dismiss-btn { background: white; color: #d32f2f; border: none; padding: 6px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: transform 0.1s; }
 .dismiss-btn:active { transform: scale(0.95); }
 
 /* MAIN LAYOUT */
 #dashboardScreen { display: none; width: 100%; height: 100%; flex-direction: column; }
-.workspace-area { display: flex; flex: 1; overflow: hidden; position: relative; }
+.workspace-area { display: flex; flex: 1; overflow: hidden; position: relative; min-height: 0; }
 
 /* SIDEBAR */
-.sidebar { width: 350px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; z-index: 2; transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
-.header { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 5; }
+.sidebar { width: 350px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; z-index: 2; transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); min-height: 0; }
+.header { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 5; flex-shrink: 0; }
 .user-info { font-size: 0.85rem; font-weight: 500; opacity: 0.9; margin-top: 2px; }
 .admin-btn { background: #FFC107; color: #333; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: none; margin-top: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 .logout-btn { background: transparent; border: 1px solid rgba(255,255,255,0.5); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; transition: background 0.2s; }
 .logout-btn:hover { background: rgba(255,255,255,0.1); }
 
 /* CUSTOMER LIST */
-.customer-list { flex: 1; overflow-y: auto; background: white; }
+.customer-list { flex: 1; overflow-y: auto; background: white; min-height: 0; }
 .customer-item { padding: 18px 20px; border-bottom: 1px solid #f0f2f5; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
 .customer-item:hover { background: #f9f9f9; }
 .customer-item.active { background: var(--light-bg); border-left: 5px solid var(--primary); }
@@ -41,10 +43,11 @@ body { background-color: #f0f2f5; display: flex; height: 100vh; overflow: hidden
 .status-badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 12px; background: #eee; color: #555; font-weight: 600; display: flex; align-items: center; }
 
 /* MAIN CHAT AREA */
-.main-content { flex: 1; display: flex; flex-direction: column; background: var(--chat-bg); position: relative; z-index: 3; transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
+.main-content { flex: 1; display: flex; flex-direction: column; background: var(--chat-bg); position: relative; z-index: 3; transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); min-width: 0; min-height: 0; }
 #lockOverlay { display: flex; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #f0f2f5; z-index: 10; align-items: center; justify-content: center; font-size: 1.2rem; color: #888; font-weight: 500; }
 
-.chat-header { background: white; padding: 15px 25px; border-bottom: 1px solid #ddd; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.05); z-index: 5; }
+/* FIX 2: Prevent header from shrinking when chat gets full */
+.chat-header { background: white; padding: 15px 25px; border-bottom: 1px solid #ddd; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.05); z-index: 5; flex-shrink: 0; }
 .chat-title { font-weight: bold; font-size: 1.2rem; color: var(--text-main); display: flex; align-items: center; }
 .mobile-back-btn { display: none; background: none; border: none; font-size: 1.4rem; cursor: pointer; margin-right: 15px; color: var(--primary); padding: 5px; }
 .edit-name-btn { background: none; border: none; cursor: pointer; font-size: 1rem; margin-left: 10px; opacity: 0.5; transition: 0.2s; padding: 5px; }
@@ -56,14 +59,14 @@ body { background-color: #f0f2f5; display: flex; height: 100vh; overflow: hidden
 .close-btn { background: #d32f2f; box-shadow: 0 4px 10px rgba(211,47,47,0.3); }
 
 /* CHAT BUBBLES */
-.messages { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.messages { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
 .msg { padding: 12px 16px; border-radius: 12px; max-width: 75%; line-height: 1.5; font-size: 0.95rem; box-shadow: 0 1px 2px rgba(0,0,0,0.1); color: var(--text-main); position: relative; word-wrap: break-word; }
 .msg.incoming { background: white; align-self: flex-start; border-top-left-radius: 0; }
 .msg.outgoing { background: var(--light-bg); align-self: flex-end; border-top-right-radius: 0; }
 .msg img { max-width: 100%; max-height: 300px; object-fit: contain; display: block; border-radius: 8px; margin-top: 5px; border: 1px solid rgba(0,0,0,0.05); }
 
-/* INPUT AREA */
-.input-area { padding: 15px 25px; background: white; display: flex; gap: 12px; align-items: center; border-top: 1px solid #ddd; }
+/* FIX 3: Lock input area height and add iPhone bottom swipe-bar safety padding */
+.input-area { padding: 15px 25px calc(15px + env(safe-area-inset-bottom)); background: white; display: flex; gap: 12px; align-items: center; border-top: 1px solid #ddd; flex-shrink: 0; }
 .input-area input[type="text"] { flex: 1; padding: 16px 20px; border: 1px solid #ddd; border-radius: 24px; outline: none; font-size: 1rem; transition: border-color 0.2s; background: #f0f2f5; }
 .input-area input[type="text"]:focus { border-color: var(--primary); background: white; }
 .send-btn { background: var(--primary); color: white; border: none; padding: 14px 24px; border-radius: 24px; cursor: pointer; font-weight: bold; font-size: 1rem; box-shadow: 0 4px 10px rgba(30,124,152,0.3); transition: transform 0.1s; }
@@ -89,39 +92,18 @@ body { background-color: #f0f2f5; display: flex; height: 100vh; overflow: hidden
    MOBILE RESPONSIVENESS (THE SLIDING WINDOW)
    ========================================= */
 @media (max-width: 768px) {
-    /* Create a side-by-side flex track */
-    .workspace-area { 
-        display: flex; 
-        flex-direction: row; 
-        width: 100vw; 
-        overflow: hidden; 
-        position: relative;
-    }
-    
-    /* Force Lobby to take up the whole screen */
-    .sidebar { 
-        min-width: 100vw; 
-        width: 100vw; 
-        transition: transform 0.3s ease; 
-    }
-    
-    /* Force Chat to take up the whole screen, sitting just off the right edge */
-    .main-content { 
-        min-width: 100vw; 
-        width: 100vw; 
-        transition: transform 0.3s ease; 
-        border-left: none; 
-    }
-    
-    /* When a chat is active, slide both panels 100% to the left! */
+    .workspace-area { display: flex; flex-direction: row; width: 100vw; overflow: hidden; position: relative; }
+    .sidebar { min-width: 100vw; width: 100vw; transition: transform 0.3s ease; }
+    .main-content { min-width: 100vw; width: 100vw; transition: transform 0.3s ease; border-left: none; }
     body.mobile-chat-active .sidebar { transform: translateX(-100vw); }
     body.mobile-chat-active .main-content { transform: translateX(-100vw); }
 
     .mobile-back-btn { display: inline-block; }
     
-    /* Adjust paddings for thumbs */
     .chat-header { padding: 15px; }
-    .input-area { padding: 12px 15px; gap: 8px; }
+    
+    /* FIX 4: Add extra padding on mobile so the keyboard doesn't cover the text box */
+    .input-area { padding: 12px 15px calc(12px + env(safe-area-inset-bottom)); gap: 8px; }
     .quick-reply-select { max-width: 45px; color: transparent; padding: 14px 10px; } 
     .messages { padding: 15px; }
     .msg { max-width: 85%; }
